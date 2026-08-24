@@ -1,0 +1,22 @@
+{
+  "tag": "org-chart-stable-v1",
+  "commitMessage": "Backup: Fixed org chart connector lines, dynamic layout reflow, and 2-column bounds",
+  "timestamp": "2026-08-17T16:52:00+05:30",
+  "backupZip": "D:\\org-chart-stable-v1-backup.zip",
+  "status": "BACKUP_COMPLETED",
+  "filesBackedUp": [
+    "src/App.jsx",
+    "src/index.css",
+    "src/components/OrgCanvas.jsx",
+    "src/components/OrgNode.jsx",
+    "src/components/ControlsBar.jsx",
+    "src/components/Header.jsx",
+    "src/components/MemberDrawer.jsx",
+    "src/components/MemberModal.jsx",
+    "src/components/AnalyticsView.jsx",
+    "src/components/ListView.jsx",
+    "src/components/ImportExportModal.jsx",
+    "src/data/initialData.js",
+    "src/utils/orgUtils.js"
+  ]
+}
