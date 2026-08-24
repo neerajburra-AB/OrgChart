@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import * as XLSX from 'xlsx';
 import Header from './components/Header';
 import ControlsBar from './components/ControlsBar';
 import OrgCanvas from './components/OrgCanvas';
@@ -22,7 +21,7 @@ const STORAGE_KEY = 'orgpulse_members_data';
 const THEME_KEY = 'orgpulse_theme';
 
 export default function App() {
-  // Members State
+  // Members state initialized with INITIAL_MEMBERS fallback
   const [members, setMembers] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -35,72 +34,37 @@ export default function App() {
     return INITIAL_MEMBERS;
   });
 
-  const [isExcelLoading, setIsExcelLoading] = useState(false);
+  const [isJsonLoading, setIsJsonLoading] = useState(false);
 
-  // Dynamic Excel File Data Engine: Fetch public/data/members.xlsx on initial load
-  const loadExcelMembers = useCallback(async () => {
-    setIsExcelLoading(true);
+  // Safe JSON Data Engine: Fetch public/data/members.json with fallback array
+  const loadJsonMembers = useCallback(async () => {
+    setIsJsonLoading(true);
     try {
       const baseUrl = import.meta.env.BASE_URL || '/';
-      const excelUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}data/members.xlsx`;
-      const res = await fetch(excelUrl);
+      const jsonUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}data/members.json`;
+      const res = await fetch(jsonUrl);
       
       if (!res.ok) {
         throw new Error(`HTTP error ${res.status}`);
       }
 
-      const arrayBuffer = await res.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet);
+      const data = await res.json();
 
-      if (rows && rows.length > 0) {
-        const parsedMembers = rows.map((row, index) => {
-          const id = String(row.ID || row.id || `emp-${index + 1}`).trim();
-          const name = String(row.Name || row.name || 'Unnamed Employee').trim();
-          const title = String(row.Title || row.title || 'Team Member').trim();
-          const department = String(row.Department || row.department || 'Engineering').trim();
-          const rawManagerId = row['Manager ID'] || row.managerId || row.ManagerId || row.manager_id || null;
-          const managerId = rawManagerId ? String(rawManagerId).trim() : null;
-          const location = String(row.Location || row.location || 'Remote').trim();
-          const status = String(row.Status || row.status || 'active').trim();
-          const level = String(row.Level || row.level || 'Senior').trim();
-          const email = String(row.Email || row.email || `${name.toLowerCase().replace(/\s+/g, '.')}@nexus.io`).trim();
-          const phone = String(row.Phone || row.phone || '').trim();
-          const rawSkills = row.Skills || row.skills || '';
-          const skills = typeof rawSkills === 'string' ? rawSkills.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(rawSkills) ? rawSkills : []);
-          const bio = String(row.Bio || row.bio || '').trim();
-
-          return {
-            id,
-            name,
-            title,
-            department,
-            managerId,
-            location,
-            status,
-            level,
-            email,
-            phone,
-            skills,
-            bio,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff`
-          };
-        });
-
-        setMembers(parsedMembers);
+      if (Array.isArray(data) && data.length > 0) {
+        setMembers(data);
       }
     } catch (err) {
-      console.warn('Excel load fallback to stored/demo dataset:', err);
+      console.warn('JSON load fallback to default dataset:', err);
+      // Fallback array guarantees NO blank/white screen under any condition
+      setMembers(INITIAL_MEMBERS);
     } finally {
-      setIsExcelLoading(false);
+      setIsJsonLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadExcelMembers();
-  }, [loadExcelMembers]);
+    loadJsonMembers();
+  }, [loadJsonMembers]);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -167,7 +131,7 @@ export default function App() {
     });
   }, [members, search, departmentFilter, levelFilter]);
 
-  // Build tree data
+  // Build tree data recursively using buildOrgTree
   const { root: treeRoot, memberMap } = useMemo(() => {
     return buildOrgTree(members, collapseState);
   }, [members, collapseState]);
@@ -204,7 +168,7 @@ export default function App() {
   const handleSelectSearchResult = useCallback((member) => {
     if (!member) return;
 
-    // Expand all parent/ancestor nodes along path
+    // Expand all parent/ancestor nodes along hierarchy path
     const ancestors = getAncestorIds(member.id, memberMap);
     setCollapseState(prev => {
       const next = { ...prev };
@@ -344,8 +308,8 @@ export default function App() {
         onCollapseAll={handleCollapseAll}
         onExportPng={handleExportPng}
         onExportPdf={handleExportPdf}
-        onReloadExcel={loadExcelMembers}
-        isExcelLoading={isExcelLoading}
+        onReloadJson={loadJsonMembers}
+        isJsonLoading={isJsonLoading}
       >
         {/* Controls Toolbar (Shown in Tree view) */}
         {activeView === 'tree' && (

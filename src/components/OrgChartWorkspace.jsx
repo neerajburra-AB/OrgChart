@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   PanelLeftClose, 
   PanelLeftOpen, 
-  FileSpreadsheet, 
+  FileCode, 
   Download, 
   Filter, 
   GitMerge, 
@@ -15,15 +15,11 @@ import {
   Image as ImageIcon, 
   FileText, 
   Loader2, 
-  Users, 
-  Building2, 
-  Layers, 
   BarChart2,
   RefreshCcw
 } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 import { computeOrgStats } from '../utils/orgUtils';
-import * as XLSX from 'xlsx';
 
 export default function OrgChartWorkspace({
   members,
@@ -43,8 +39,8 @@ export default function OrgChartWorkspace({
   onCollapseAll,
   onExportPng,
   onExportPdf,
-  onReloadExcel,
-  isExcelLoading,
+  onReloadJson,
+  isJsonLoading,
   children
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -53,29 +49,14 @@ export default function OrgChartWorkspace({
 
   const stats = computeOrgStats(members);
 
-  const handleDownloadExcelFile = () => {
-    // Generate fresh binary .xlsx file directly from current active members dataset
-    const rows = members.map(m => ({
-      'ID': m.id,
-      'Name': m.name,
-      'Title': m.title,
-      'Department': m.department,
-      'Manager ID': m.managerId || '',
-      'Location': m.location,
-      'Status': m.status,
-      'Level': m.level || 'Senior',
-      'Email': m.email || '',
-      'Phone': m.phone || '',
-      'Skills': Array.isArray(m.skills) ? m.skills.join(', ') : (m.skills || ''),
-      'Bio': m.bio || ''
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Members');
-
-    // Trigger direct download of members.xlsx for manual offline editing
-    XLSX.writeFile(workbook, 'members.xlsx');
+  const handleDownloadJsonFile = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(members, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `members.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
   };
 
   const handlePngExport = async () => {
@@ -98,12 +79,12 @@ export default function OrgChartWorkspace({
 
   return (
     <div className={`workspace-wrapper ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-      {/* Collapsible Left Sidebar Panel */}
+      {/* Collapsible Left Sidebar Control Panel */}
       <aside className="workspace-sidebar">
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <div className="sidebar-icon-box">
-              <Layers size={18} />
+              <FileCode size={18} />
             </div>
             <div>
               <div className="sidebar-title">Workspace Controls</div>
@@ -121,39 +102,39 @@ export default function OrgChartWorkspace({
         </div>
 
         <div className="sidebar-content">
-          {/* Excel Data Engine Section */}
+          {/* JSON Data Engine Section */}
           <div className="sidebar-section">
             <div className="sidebar-section-title">
-              <FileSpreadsheet size={14} className="section-icon" />
+              <FileCode size={14} className="section-icon" />
               <span>Data Engine</span>
             </div>
 
             <div className="excel-status-card">
               <div className="excel-badge">
                 <span className="dot pulse" />
-                <span>members.xlsx</span>
+                <span>members.json</span>
               </div>
               <p className="excel-desc">
-                Dynamic dataset synced with local Excel file storage. ({members.length} Employees)
+                Synced with JSON data storage. ({members.length} Employees Loaded)
               </p>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                 <button
                   className="btn btn-primary excel-download-btn"
-                  onClick={handleDownloadExcelFile}
-                  title="Download members.xlsx for manual offline editing in Excel"
+                  onClick={handleDownloadJsonFile}
+                  title="Download members.json dataset file"
                 >
                   <Download size={14} />
-                  <span>Download Excel File</span>
+                  <span>Download JSON</span>
                 </button>
 
                 <button
                   className="icon-btn"
-                  onClick={onReloadExcel}
-                  title="Reload members.xlsx file"
-                  disabled={isExcelLoading}
+                  onClick={onReloadJson}
+                  title="Reload members.json file"
+                  disabled={isJsonLoading}
                 >
-                  <RefreshCcw size={14} className={isExcelLoading ? 'spin' : ''} />
+                  <RefreshCcw size={14} className={isJsonLoading ? 'spin' : ''} />
                 </button>
               </div>
             </div>
@@ -350,7 +331,7 @@ export default function OrgChartWorkspace({
         </button>
       )}
 
-      {/* Main Workspace Workspace Content Area */}
+      {/* Main Workspace Content Area */}
       <div className="workspace-main-content">
         {children}
       </div>
