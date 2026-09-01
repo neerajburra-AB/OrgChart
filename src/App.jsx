@@ -16,9 +16,15 @@ import {
   getAncestorIds
 } from './utils/orgUtils';
 import { exportToPNG, exportToPDF } from './utils/exportUtils';
+import * as XLSX from 'xlsx';
 
 const STORAGE_KEY = 'orgpulse_members_data';
 const THEME_KEY = 'orgpulse_theme';
+
+// Live data source: a Google Sheet published as CSV (File > Share > Publish to web > CSV).
+// Update the URL below whenever you republish a new Sheet. Leave it as '' to skip straight
+// to the bundled public/data/members.json file below.
+const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1SA7KNxIUxZ5ed7KbaPSS7xva6O541RtMuwoTWPlQ-k6fsBzHeMq0VCWp9wUkKP9dq1y8-MzpgfJW/pub?gid=0&single=true&output=csv';
 
 export default function App() {
   // Members state initialized with INITIAL_MEMBERS fallback
@@ -36,14 +42,65 @@ export default function App() {
 
   const [isJsonLoading, setIsJsonLoading] = useState(false);
 
-  // Safe JSON Data Engine: Fetch public/data/members.json with fallback array
+  // Converts a raw spreadsheet row (from the live Google Sheet CSV) into a member object,
+  // matching the exact shape used by public/data/members.json.
+  const parseSheetRow = (row) => ({
+    id: String(row.id ?? '').trim(),
+    name: row.name ?? '',
+    title: row.title ?? '',
+    department: row.department ?? '',
+    email: row.email ?? '',
+    phone: row.phone ?? '',
+    location: row.location ?? '',
+    avatar: row.avatar ?? '',
+    status: row.status ?? 'active',
+    managerId: row.managerId ? String(row.managerId).trim() : null,
+    matrixManagerId: row.matrixManagerId ? String(row.matrixManagerId).trim() : null,
+    skills: row.skills
+      ? String(row.skills).split('|').map((s) => s.trim()).filter(Boolean)
+      : [],
+    bio: row.bio ?? '',
+    joinDate: row.joinDate ?? '',
+    level: row.level ?? ''
+  });
+
+  // Try loading members from the live published Google Sheet CSV.
+  // Returns the parsed member array, or null if the sheet couldn't be loaded/parsed.
+  const loadLiveSheetMembers = async () => {
+    if (!LIVE_SHEET_CSV_URL) return null;
+    try {
+      const res = await fetch(LIVE_SHEET_CSV_URL);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+      const csvText = await res.text();
+      const workbook = XLSX.read(csvText, { type: 'string' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+      const parsed = rows.map(parseSheetRow).filter((m) => m.id);
+
+      return parsed.length > 0 ? parsed : null;
+    } catch (err) {
+      console.warn('Live Google Sheet load failed, falling back to bundled JSON:', err);
+      return null;
+    }
+  };
+
+  // Safe Data Engine: try the live Google Sheet CSV first (so day-to-day data edits show up
+  // without a redeploy), then fall back to the bundled public/data/members.json, then to the
+  // built-in sample dataset. Guarantees NO blank/white screen under any condition.
   const loadJsonMembers = useCallback(async () => {
     setIsJsonLoading(true);
     try {
+      const liveMembers = await loadLiveSheetMembers();
+      if (liveMembers) {
+        setMembers(liveMembers);
+        return;
+      }
+
       const baseUrl = import.meta.env.BASE_URL || '/';
       const jsonUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}data/members.json`;
       const res = await fetch(jsonUrl);
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error ${res.status}`);
       }

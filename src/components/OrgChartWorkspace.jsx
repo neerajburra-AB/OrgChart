@@ -112,17 +112,17 @@ export default function OrgChartWorkspace({
             <div className="excel-status-card">
               <div className="excel-badge">
                 <span className="dot pulse" />
-                <span>members.json</span>
+                <span>Live Data</span>
               </div>
               <p className="excel-desc">
-                Synced with JSON data storage. ({members.length} Employees Loaded)
+                Synced with live data source. ({members.length} Employees Loaded)
               </p>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                 <button
                   className="btn btn-primary excel-download-btn"
                   onClick={handleDownloadJsonFile}
-                  title="Download members.json dataset file"
+                  title="Download current dataset as JSON"
                 >
                   <Download size={14} />
                   <span>Download JSON</span>
@@ -131,7 +131,7 @@ export default function OrgChartWorkspace({
                 <button
                   className="icon-btn"
                   onClick={onReloadJson}
-                  title="Reload members.json file"
+                  title="Reload live data source"
                   disabled={isJsonLoading}
                 >
                   <RefreshCcw size={14} className={isJsonLoading ? 'spin' : ''} />
