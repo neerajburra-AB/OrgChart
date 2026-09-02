@@ -223,103 +223,86 @@ export default function OrgCanvas({
   );
 }
 
-// Beyond this many direct reports under one manager, the extra ones collapse into a
-// "+N more" button instead of stretching the row/column indefinitely - that unbounded
-// growth was forcing a very long scroll (horizontal in row layouts, vertical in the
-// waterfall leaf-stack) for any manager with a large team. Clicking it reveals the rest
-// in a wrapped grid (bounded width, multiple rows) instead of one more single strip, so
-// growth stays bounded in both directions no matter how many direct reports there are.
-const MAX_VISIBLE_SIBLINGS = 8;
+// Beyond this many direct reports, individual per-child connector lines stop being
+// readable (the reference Power BI org-chart tool we were asked to match has the same
+// cutover - it never hides a report, but it stops drawing an individual branch line to
+// each one once there are a lot of them). Past this count we switch to rendering EVERY
+// child inside one wrapped grid instead - nothing is hidden behind a button, the grid
+// just grows to as many rows as it needs to hold all of them. Column count is picked per
+// group (roughly square: ceil(sqrt(N))) so a group of 15 doesn't render as one 15-wide
+// strip or one 15-tall column - it comes out close to a 4x4 block, which is what actually
+// stops the "endless scroll" problem. Getting the whole block into view from there is
+// what the zoom / pan / Fit-to-Screen controls are for (see OrgCanvas's handleFitToScreen).
+const WRAP_THRESHOLD = 8;
 
-// Row-based overflow (used by the horizontal children container: waterfall's non-leaf
+function gridColumnCount(total) {
+  return Math.max(2, Math.ceil(Math.sqrt(total)));
+}
+
+// Row-based layout (used by the horizontal children container: waterfall's non-leaf
 // case, and classic/horizontal layout modes).
 function RowChildren({ childNodes, renderChild }) {
-  const [showAll, setShowAll] = useState(false);
   const total = childNodes.length;
-  const overflowing = total > MAX_VISIBLE_SIBLINGS;
-  // The main row always caps at MAX_VISIBLE_SIBLINGS, whether or not the overflow
-  // section below is expanded - only the overflow grid's own visibility toggles.
-  // (Using `!showAll` here too was a bug: it let ALL children re-render in the main
-  // row once expanded, duplicating the overflow ones a second time in the grid below.)
-  const visibleNodes = overflowing ? childNodes.slice(0, MAX_VISIBLE_SIBLINGS) : childNodes;
-  const hiddenNodes = overflowing ? childNodes.slice(MAX_VISIBLE_SIBLINGS) : [];
 
-  return (
-    <>
+  if (total <= WRAP_THRESHOLD) {
+    return (
       <div className="tree-children-container">
-        {visibleNodes.map((childNode, index) => (
-          <SiblingChildWrapper key={childNode.id} index={index} totalChildren={visibleNodes.length}>
+        {childNodes.map((childNode, index) => (
+          <SiblingChildWrapper key={childNode.id} index={index} totalChildren={total}>
             {renderChild(childNode)}
           </SiblingChildWrapper>
         ))}
       </div>
+    );
+  }
 
-      {overflowing && !showAll && (
-        <div className="siblings-overflow-toggle-wrapper">
-          <div className="overflow-connector-stem" />
-          <button className="show-more-siblings-btn" onClick={() => setShowAll(true)}>
-            +{hiddenNodes.length} more direct report{hiddenNodes.length === 1 ? '' : 's'}
-          </button>
-        </div>
-      )}
-
-      {overflowing && showAll && (
-        <div className="siblings-overflow-grid-wrapper">
-          <div className="overflow-connector-stem" />
-          <div className="siblings-overflow-grid">
-            {hiddenNodes.map((childNode) => (
-              <div key={childNode.id} className="overflow-sibling-item">
-                {renderChild(childNode)}
-              </div>
-            ))}
+  const columns = gridColumnCount(total);
+  return (
+    <div className="siblings-wrap-grid-wrapper">
+      <div className="overflow-connector-stem" />
+      <div
+        className="siblings-wrap-grid"
+        style={{ gridTemplateColumns: `repeat(${columns}, 260px)` }}
+      >
+        {childNodes.map((childNode) => (
+          <div key={childNode.id} className="wrap-sibling-item">
+            {renderChild(childNode)}
           </div>
-          <button className="show-less-siblings-btn" onClick={() => setShowAll(false)}>
-            Show fewer
-          </button>
-        </div>
-      )}
-    </>
+        ))}
+      </div>
+    </div>
   );
 }
 
-// Column-based overflow (used by the waterfall vertical leaf-stack).
+// Column-based layout (used by the waterfall vertical leaf-stack).
 function StackChildren({ childNodes, renderChild }) {
-  const [showAll, setShowAll] = useState(false);
   const total = childNodes.length;
-  const overflowing = total > MAX_VISIBLE_SIBLINGS;
-  // Same fix as RowChildren above: the main stack always caps at MAX_VISIBLE_SIBLINGS
-  // regardless of showAll, so the overflow grid never duplicates what's already shown.
-  const visibleNodes = overflowing ? childNodes.slice(0, MAX_VISIBLE_SIBLINGS) : childNodes;
-  const hiddenNodes = overflowing ? childNodes.slice(MAX_VISIBLE_SIBLINGS) : [];
 
-  return (
-    <div className="waterfall-vertical-stack">
-      {visibleNodes.map((childNode) => (
-        <div key={childNode.id} className="waterfall-stack-item">
-          {renderChild(childNode)}
-        </div>
-      ))}
-
-      {overflowing && !showAll && (
-        <button className="show-more-siblings-btn stack-variant" onClick={() => setShowAll(true)}>
-          +{hiddenNodes.length} more direct report{hiddenNodes.length === 1 ? '' : 's'}
-        </button>
-      )}
-
-      {overflowing && showAll && (
-        <div className="siblings-overflow-grid-wrapper stack-variant">
-          <div className="siblings-overflow-grid">
-            {hiddenNodes.map((childNode) => (
-              <div key={childNode.id} className="overflow-sibling-item">
-                {renderChild(childNode)}
-              </div>
-            ))}
+  if (total <= WRAP_THRESHOLD) {
+    return (
+      <div className="waterfall-vertical-stack">
+        {childNodes.map((childNode) => (
+          <div key={childNode.id} className="waterfall-stack-item">
+            {renderChild(childNode)}
           </div>
-          <button className="show-less-siblings-btn" onClick={() => setShowAll(false)}>
-            Show fewer
-          </button>
-        </div>
-      )}
+        ))}
+      </div>
+    );
+  }
+
+  const columns = gridColumnCount(total);
+  return (
+    <div className="siblings-wrap-grid-wrapper stack-variant">
+      <div
+        className="siblings-wrap-grid"
+        style={{ gridTemplateColumns: `repeat(${columns}, 260px)` }}
+      >
+        {childNodes.map((childNode) => (
+          <div key={childNode.id} className="wrap-sibling-item">
+            {renderChild(childNode)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
