@@ -16,27 +16,62 @@ export function buildOrgTree(members, collapseState = {}) {
     });
   });
 
-  // Connect parents and children.
-  // Note: a dataset can contain more than one node with no manager, or a managerId
-  // that doesn't match anyone (typos, deleted managers, bad imports) - this becomes
-  // more likely the larger the dataset. The first such node found becomes the root;
-  // any others are attached under that root instead of silently overwriting it and
-  // dropping their whole subtree from the chart.
+  // Pass 1: pick the root from managerId alone - a person with a genuinely BLANK
+  // managerId (no manager at all). A non-blank managerId that doesn't match anyone
+  // is a DATA ERROR (typo, deleted manager, bad import/export), not a signal that
+  // this person belongs at the top - it must never compete for root, or whichever
+  // broken row happens to appear first in the sheet silently becomes "the boss"
+  // instead of the actual owner.
   memberMap.forEach(node => {
-    if (!node.managerId || !memberMap.has(node.managerId)) {
+    if (!node.managerId) {
       if (!root) {
         root = node;
       } else if (node.id !== root.id) {
+        // More than one person has a blank managerId (rare, but possible with messy
+        // data) - keep the first as the real root and nest the rest under it so
+        // nobody is silently dropped.
         root.children.push(node);
       }
-    } else {
-      const manager = memberMap.get(node.managerId);
-      manager.children.push(node);
     }
   });
 
-  // Calculate subtree sizes recursively
+  // Pass 2: connect everyone whose managerId points to a real person. Anyone whose
+  // managerId is non-blank but doesn't match anyone in the dataset (the data-error
+  // case above) is attached under the root instead of vanishing from the chart.
+  let orphanCount = 0;
+  memberMap.forEach(node => {
+    if (!node.managerId) return; // already placed in pass 1
+    const manager = memberMap.get(node.managerId);
+    if (manager) {
+      manager.children.push(node);
+    } else if (root && node.id !== root.id) {
+      root.children.push(node);
+      orphanCount += 1;
+    }
+  });
+
+  if (!root) {
+    // Extremely unlikely (every single row has SOME managerId value) - fall back to
+    // the first row so the chart still renders something instead of going blank.
+    root = memberMap.values().next().value || null;
+  }
+
+  if (orphanCount > 0 && typeof console !== 'undefined') {
+    console.warn(
+      `buildOrgTree: ${orphanCount} employee(s) have a managerId that doesn't match ` +
+      `any employee id and were attached directly under the root. Check those rows ` +
+      `for typos or a manager who was removed from the sheet.`
+    );
+  }
+
+  // Calculate subtree sizes recursively. Guarded against cyclic managerId data (e.g. a
+  // row whose managerId - directly or a few hops up - points back to itself) so a bad
+  // row can't recurse forever and freeze the tab; it just stops re-counting a node it
+  // has already visited.
+  const visitedForCounts = new Set();
   function computeSubtreeCounts(node) {
+    if (visitedForCounts.has(node.id)) return 0;
+    visitedForCounts.add(node.id);
     node.directReportsCount = node.children.length;
     let count = 0;
     node.children.forEach(child => {
@@ -59,10 +94,15 @@ export function buildOrgTree(members, collapseState = {}) {
 export function isDescendant(members, targetId, proposedManagerId) {
   if (targetId === proposedManagerId) return true;
   const map = new Map(members.map(m => [m.id, m]));
-  
+
+  // Guard against a circular managerId chain in the data (e.g. someone whose
+  // managerId - directly or a few hops up - loops back to themselves). Without the
+  // `visited` check this walk never terminates and freezes the tab.
+  const visited = new Set([proposedManagerId]);
   let current = map.get(proposedManagerId);
-  while (current && current.managerId) {
+  while (current && current.managerId && !visited.has(current.managerId)) {
     if (current.managerId === targetId) return true;
+    visited.add(current.managerId);
     current = map.get(current.managerId);
   }
   return false;
@@ -73,9 +113,14 @@ export function isDescendant(members, targetId, proposedManagerId) {
  */
 export function getAncestorIds(memberId, memberMap) {
   const ancestorIds = new Set();
+  // Same cycle guard as isDescendant above - a self-referencing or circular managerId
+  // in the data must not turn this into an infinite loop (this runs on every search
+  // keystroke, so a single bad row here hangs the whole app, not just one lookup).
+  const visited = new Set([memberId]);
   let current = memberMap.get(memberId);
-  while (current && current.managerId) {
+  while (current && current.managerId && !visited.has(current.managerId)) {
     ancestorIds.add(current.managerId);
+    visited.add(current.managerId);
     current = memberMap.get(current.managerId);
   }
   return ancestorIds;
