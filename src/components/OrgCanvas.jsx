@@ -14,7 +14,9 @@ export default function OrgCanvas({
   showMatrixLines,
   onSelectMember,
   onToggleCollapse,
-  onRegisterViewportRef
+  onRegisterViewportRef,
+  onZoomChange,
+  onRegisterFitToScreen
 }) {
   const containerRef = useRef(null);
   const viewportRef = useRef(null);
@@ -107,6 +109,52 @@ export default function OrgCanvas({
       });
     }
   };
+
+  // "Fit to Screen" - inspired directly by the reference Power BI org-chart tool the
+  // user pointed us at: instead of hiding a manager's reports behind a cap, it lets you
+  // zoom/pan freely and offers one button that auto-scales + centers the WHOLE currently
+  // expanded tree into view. We keep our own "+N more" cap for the default case (it's
+  // still the right call for a 1000+ row dataset with everything expanded), but this
+  // button covers the same "I expanded a big branch and now it's off-screen" problem
+  // the reference tool solves - no scrolling hunt required.
+  //
+  // `.tree-viewport` is `position: absolute` with `transform-origin: 0 0`, so its own
+  // offsetWidth/offsetHeight are the tree's natural, unscaled size (the scale() transform
+  // doesn't affect an element's own layout box) - exactly the number we need here.
+  const handleFitToScreen = () => {
+    if (!containerRef.current || !viewportRef.current) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const contentWidth = viewportRef.current.offsetWidth;
+    const contentHeight = viewportRef.current.offsetHeight;
+    if (!contentWidth || !contentHeight) return;
+
+    const padding = 64; // breathing room so cards don't touch the viewport edge
+    const availableWidth = Math.max(containerRect.width - padding * 2, 50);
+    const availableHeight = Math.max(containerRect.height - padding * 2, 50);
+
+    const rawScale = Math.min(availableWidth / contentWidth, availableHeight / contentHeight);
+    // Deliberately not clamped to the manual +/- button's 0.4-2.0 range: "fit to screen"
+    // is a one-off action whose whole point is reaching scales the step buttons can't -
+    // a huge expanded branch needs to zoom out further than 40%, and a tiny one should be
+    // allowed to zoom in past 200% too. A hard floor still guards against a zero/negative
+    // scale if something renders with a near-0 size.
+    const newZoom = Math.max(0.05, rawScale);
+
+    if (onZoomChange) onZoomChange(newZoom);
+
+    setPan({
+      x: (containerRect.width - contentWidth * newZoom) / 2,
+      y: padding
+    });
+  };
+
+  useEffect(() => {
+    if (onRegisterFitToScreen) {
+      onRegisterFitToScreen(handleFitToScreen);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRegisterFitToScreen]);
 
   if (!treeRoot) {
     return (

@@ -310,6 +310,20 @@ body {
   border-bottom: var(--glass-border);
   z-index: 30;
   font-size: 12.5px;
+  /* This row packs a lot of controls (filters, layout mode, toggles, export, zoom).
+     Without this, once it stops fitting - a narrower window, or another button added
+     later like Fit-to-Screen - it silently overflows the row's own bounds. Because this
+     row's flex-column ancestor (.workspace-main-content) has no width cap of its own,
+     that overflow was leaking out and widening the WHOLE page horizontally; then any
+     click that focuses a control past the visible edge made the browser's native
+     scroll-focused-element-into-view kick in and scroll that ancestor sideways, which
+     silently shifted the canvas container off to the left of the viewport (this is
+     exactly what broke "Fit to Screen"'s centering - the math was right, but the
+     container it was centering *within* had been scrolled out from under it).
+     overflow-x here keeps any overflow local to this one row - worst case you can
+     scroll the toolbar itself, instead of the whole page layout shifting. */
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .toolbar-group {

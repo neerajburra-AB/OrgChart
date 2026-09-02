@@ -222,6 +222,10 @@ export default function App() {
   // Viewport DOM Element reference for Export PNG/PDF
   const viewportElemRef = useRef(null);
 
+  // OrgCanvas registers its "fit whole tree into view" function here so the toolbar
+  // button (which lives outside OrgCanvas) can trigger it.
+  const fitToScreenRef = useRef(null);
+
   const handleRegisterViewportRef = useCallback((elem) => {
     viewportElemRef.current = elem;
   }, []);
@@ -319,6 +323,9 @@ export default function App() {
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.15, 2.0));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.15, 0.4));
   const handleResetZoom = () => setZoom(1.0);
+  const handleFitToScreen = () => {
+    if (fitToScreenRef.current) fitToScreenRef.current();
+  };
 
   // Expand / Collapse All Handlers
   const handleExpandAll = () => {
@@ -448,6 +455,7 @@ export default function App() {
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onResetZoom={handleResetZoom}
+            onFitToScreen={handleFitToScreen}
             layoutMode={layoutMode}
             setLayoutMode={setLayoutMode}
             cardMode={cardMode}
@@ -483,6 +491,8 @@ export default function App() {
               onSelectMember={(member) => setSelectedMember(member)}
               onToggleCollapse={handleToggleCollapse}
               onRegisterViewportRef={handleRegisterViewportRef}
+              onZoomChange={setZoom}
+              onRegisterFitToScreen={(fn) => { fitToScreenRef.current = fn; }}
             />
           )}
 

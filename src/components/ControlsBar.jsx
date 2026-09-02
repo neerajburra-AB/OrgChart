@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  ZoomIn, 
-  ZoomOut, 
-  RotateCcw, 
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Maximize2,
   GitMerge, 
   GitBranch, 
   ArrowLeftRight, 
@@ -22,6 +23,7 @@ export default function ControlsBar({
   onZoomIn,
   onZoomOut,
   onResetZoom,
+  onFitToScreen,
   layoutMode,
   setLayoutMode,
   cardMode,
@@ -212,6 +214,9 @@ export default function ControlsBar({
         </button>
         <button className="icon-btn" onClick={onResetZoom} title="Reset View">
           <RotateCcw size={15} />
+        </button>
+        <button className="icon-btn" onClick={onFitToScreen} title="Fit whole tree to screen">
+          <Maximize2 size={15} />
         </button>
       </div>
     </div>
