@@ -1,3 +1,7 @@
+// Synthetic id for the "To Be Confirmed / Unknown RM" grouping node created by buildOrgTree
+// below. Chosen to be extremely unlikely to collide with a real employee id from the sheet.
+export const UNASSIGNED_MANAGER_ID = '__unassigned_rm__';
+
 /**
  * Converts a flat array of org members into a nested tree structure
  */
@@ -37,16 +41,17 @@ export function buildOrgTree(members, collapseState = {}) {
 
   // Pass 2: connect everyone whose managerId points to a real person. Anyone whose
   // managerId is non-blank but doesn't match anyone in the dataset (the data-error
-  // case above) is attached under the root instead of vanishing from the chart.
-  let orphanCount = 0;
+  // case above) is collected as an "orphan" instead of vanishing from the chart -
+  // they get grouped under a single synthetic node below rather than dumped as
+  // direct reports of the real root (which would misrepresent the org structure).
+  const orphanNodes = [];
   memberMap.forEach(node => {
     if (!node.managerId) return; // already placed in pass 1
     const manager = memberMap.get(node.managerId);
     if (manager) {
       manager.children.push(node);
     } else if (root && node.id !== root.id) {
-      root.children.push(node);
-      orphanCount += 1;
+      orphanNodes.push(node);
     }
   });
 
@@ -56,12 +61,47 @@ export function buildOrgTree(members, collapseState = {}) {
     root = memberMap.values().next().value || null;
   }
 
-  if (orphanCount > 0 && typeof console !== 'undefined') {
-    console.warn(
-      `buildOrgTree: ${orphanCount} employee(s) have a managerId that doesn't match ` +
-      `any employee id and were attached directly under the root. Check those rows ` +
-      `for typos or a manager who was removed from the sheet.`
-    );
+  // Group every orphan under one clearly-labeled synthetic node ("To Be Confirmed /
+  // Unknown RM") attached beneath the root, instead of attaching them directly under
+  // the root as if they genuinely reported to the chairman/owner. This keeps the data
+  // problem visible and contained in one place rather than scattered across the top
+  // of the chart. The orphans' effective managerId is repointed at this synthetic
+  // node (their raw data is untouched - `members` is not mutated) so search's
+  // ancestor-expansion and other managerId-chain walks resolve correctly for them.
+  if (orphanNodes.length > 0 && root) {
+    const unassignedGroup = {
+      id: UNASSIGNED_MANAGER_ID,
+      name: 'To Be Confirmed / Unknown RM',
+      title: `${orphanNodes.length} employee(s) with an unrecognized manager ID`,
+      department: '',
+      email: '',
+      phone: '',
+      location: '',
+      avatar: '',
+      status: 'active',
+      managerId: root.id,
+      matrixManagerId: null,
+      skills: [],
+      bio: 'Auto-generated group - these employees\' managerId does not match any existing employee id (typo, deleted manager, or bad import/export). Fix their managerId in the data source to place them correctly in the chart.',
+      joinDate: '',
+      level: '',
+      children: orphanNodes,
+      directReportsCount: 0,
+      totalSubtreeCount: 0,
+      isCollapsed: !!collapseState[UNASSIGNED_MANAGER_ID],
+      isVirtual: true
+    };
+    orphanNodes.forEach(o => { o.managerId = UNASSIGNED_MANAGER_ID; });
+    memberMap.set(UNASSIGNED_MANAGER_ID, unassignedGroup);
+    root.children.push(unassignedGroup);
+
+    if (typeof console !== 'undefined') {
+      console.warn(
+        `buildOrgTree: ${orphanNodes.length} employee(s) have a managerId that doesn't ` +
+        `match any employee id - grouped under a "To Be Confirmed / Unknown RM" node ` +
+        `beneath the root. Check those rows for typos or a manager who was removed from the sheet.`
+      );
+    }
   }
 
   // Calculate subtree sizes recursively. Guarded against cyclic managerId data (e.g. a

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, MapPin, Users } from 'lucide-react';
+import { ChevronDown, MapPin, Users, AlertTriangle } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 
 export default function OrgNode({
@@ -21,6 +21,48 @@ export default function OrgNode({
   const isCompact = cardMode === 'compact';
   const isFocused = focusedNodeId === node.id;
 
+  // The synthetic "Unknown RM" grouping node (see UNASSIGNED_MANAGER_ID in orgUtils.js)
+  // isn't a real employee - it doesn't have a profile to open, so clicking it shouldn't
+  // open the member drawer/edit modal like a normal card would.
+  if (node.isVirtual) {
+    return (
+      <div
+        data-node-id={node.id}
+        className={`org-node-card virtual-node ${isCompact ? 'compact' : ''} ${isFocused ? 'focused-pulse' : ''}`}
+      >
+        <div className="node-header">
+          <div className="avatar-wrapper">
+            <div className="node-avatar virtual-node-icon">
+              <AlertTriangle size={20} />
+            </div>
+          </div>
+
+          <div className="node-main-info">
+            <div className="node-name" title={node.name}>{node.name}</div>
+            <div className="node-title" title={node.title}>{node.title}</div>
+          </div>
+        </div>
+
+        {hasChildren && (
+          <button
+            className="expand-toggle-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse(node.id);
+            }}
+            title={node.isCollapsed ? `Expand ${node.directReportsCount} employee(s)` : 'Collapse'}
+          >
+            {node.isCollapsed ? (
+              <span>+{node.directReportsCount}</span>
+            ) : (
+              <ChevronDown size={14} />
+            )}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       data-node-id={node.id}
@@ -32,16 +74,16 @@ export default function OrgNode({
       }}
     >
       {/* Department accent line at top */}
-      <div 
-        className="node-dept-bar" 
+      <div
+        className="node-dept-bar"
         style={{ background: deptInfo.color }}
       />
 
       <div className="node-header">
         <div className="avatar-wrapper">
-          <img 
-            src={node.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=random`} 
-            alt={node.name} 
+          <img
+            src={node.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=random`}
+            alt={node.name}
             className="node-avatar"
             onError={(e) => {
               e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=6366f1&color=fff`;
@@ -53,10 +95,10 @@ export default function OrgNode({
         <div className="node-main-info">
           <div className="node-name" title={node.name}>{node.name}</div>
           <div className="node-title" title={node.title}>{node.title}</div>
-          
-          <span 
+
+          <span
             className="node-dept-tag"
-            style={{ 
+            style={{
               backgroundColor: deptInfo.bg,
               color: deptInfo.color,
               border: `1px solid ${deptInfo.color}40`

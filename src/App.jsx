@@ -10,10 +10,11 @@ import ImportExportModal from './components/ImportExportModal';
 import OrgChartWorkspace from './components/OrgChartWorkspace';
 
 import { INITIAL_MEMBERS } from './data/initialData';
-import { 
-  buildOrgTree, 
-  filterMembers, 
-  getAncestorIds
+import {
+  buildOrgTree,
+  filterMembers,
+  getAncestorIds,
+  UNASSIGNED_MANAGER_ID
 } from './utils/orgUtils';
 import { exportToPNG, exportToPDF } from './utils/exportUtils';
 import * as XLSX from 'xlsx';
@@ -34,8 +35,14 @@ const LARGE_DATASET_THRESHOLD = 200;
 const AUTO_EXPAND_DEPTH = 1; // 0 = only the root starts expanded, 1 = root + direct reports
 
 function computeDefaultCollapseState(memberList) {
+  // The synthetic "Unknown RM" grouping node (see UNASSIGNED_MANAGER_ID / buildOrgTree)
+  // holds data-quality problem rows, not real top-level structure, so it always starts
+  // collapsed regardless of org size - seeded here so it's collapsed from the very
+  // first render, before any user has touched the collapse toggle.
+  const baseCollapse = { [UNASSIGNED_MANAGER_ID]: true };
+
   if (!memberList || memberList.length <= LARGE_DATASET_THRESHOLD) {
-    return {};
+    return baseCollapse;
   }
 
   const byId = new Map(memberList.map((m) => [m.id, m]));
@@ -47,10 +54,15 @@ function computeDefaultCollapseState(memberList) {
     }
   });
 
-  const root = memberList.find((m) => !m.managerId || !byId.has(m.managerId));
-  if (!root) return {};
+  // Root for this BFS must be picked the same way buildOrgTree picks the real tree
+  // root - genuinely blank managerId only. A non-blank-but-invalid managerId is a
+  // data error, not a signal of being the top of the org (see buildOrgTree for the
+  // full reasoning); using the same rule here keeps this default-collapse pass
+  // aligned with the actual tree shape instead of starting from a random broken row.
+  const root = memberList.find((m) => !m.managerId);
+  if (!root) return baseCollapse;
 
-  const collapse = {};
+  const collapse = { ...baseCollapse };
   const queue = [{ id: root.id, depth: 0 }];
   while (queue.length > 0) {
     const { id, depth } = queue.shift();
@@ -323,7 +335,10 @@ export default function App() {
     setCollapseState({});
   };
   const handleCollapseAll = () => {
-    const nextCollapse = {};
+    // Always collapse the synthetic "Unknown RM" group too, even though it isn't a
+    // real row in `members` (see UNASSIGNED_MANAGER_ID) - otherwise "Collapse All"
+    // would leave it expanded.
+    const nextCollapse = { [UNASSIGNED_MANAGER_ID]: true };
     members.forEach(m => {
       const reports = members.filter(r => r.managerId === m.id);
       if (reports.length > 0) {
