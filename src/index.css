@@ -525,12 +525,11 @@ body {
   bottom: -16px;
 }
 
-/* WRAPPING FOR MANAGERS WITH MANY DIRECT REPORTS (see WRAP_THRESHOLD / WRAP_COLUMNS in
-   OrgCanvas.jsx). Matches the reference Power BI org-chart tool's behavior: nothing is
-   ever hidden - past the threshold, EVERY child renders, in a fixed 2-column grid instead
-   of individual per-child connector lines (unreadable at high counts) or one endless
-   row/column. Use the zoom / pan / Fit-to-Screen controls to bring a large block into
-   view. */
+/* WRAPPING FOR MANAGERS WITH MANY DIRECT REPORTS (see WRAP_THRESHOLD in OrgCanvas.jsx).
+   Matches the reference Power BI org-chart tool's behavior: nothing is ever hidden - past
+   the threshold, EVERY child renders, just inside a wrapped grid instead of individual
+   per-child connector lines (unreadable at high counts) or one endless row/column. Use
+   the zoom / pan / Fit-to-Screen controls to bring a large wrapped block into view. */
 .siblings-wrap-grid-wrapper {
   display: flex;
   flex-direction: column;
@@ -557,8 +556,9 @@ body {
      (the rest of the tree layout), and a flex-wrap container's width in that kind of
      shrink-to-fit context resolves to its narrowest content instead of its max-width
      cap, so it never actually wraps - it just renders one column. Grid's explicit
-     `repeat(WRAP_COLUMNS, 260px)` gives the container a definite width up front,
-     independent of the shrink-to-fit chain around it, so it reliably wraps into rows. */
+     `repeat(N, 260px)` (N computed per group, roughly sqrt(total) for a near-square
+     block) gives the container a definite width up front, independent of the
+     shrink-to-fit chain around it, so it reliably wraps into multiple rows. */
   display: grid;
   justify-content: center;
   gap: 20px;
@@ -572,37 +572,6 @@ body {
 .wrap-sibling-item {
   display: flex;
   justify-content: center;
-}
-
-/* Holds the fixed 2-column grid (`.siblings-wrap-grid-wrapper`) side by side with an
-   expansion column for each card in that grid the user has expanded (see RowChildren in
-   OrgCanvas.jsx). Flexbox siblings never overlap each other regardless of how tall any
-   one of them grows, which is what guarantees an expanded branch can never visually
-   collide with its neighbours - each column simply owns its own horizontal slot. */
-.wrap-board-row {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 40px;
-}
-
-.wrap-expansion-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-left: 24px;
-  margin-top: 8px;
-  border-left: 2px dashed var(--accent-primary);
-}
-
-.wrap-expansion-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-  white-space: nowrap;
 }
 
 /* Node Card Styling */

@@ -226,27 +226,21 @@ export default function OrgCanvas({
 // Beyond this many direct reports, individual per-child connector lines stop being
 // readable (the reference Power BI org-chart tool we were asked to match has the same
 // cutover - it never hides a report, but it stops drawing an individual branch line to
-// each one once there are a lot of them). Past this count we switch to a fixed
-// WRAP_COLUMNS-wide grid of just the cards instead - nothing is hidden behind a button,
-// the grid just grows to as many rows as it needs to hold all of them.
-//
-// If one of those cards gets expanded to show ITS OWN children, those children do NOT
-// nest inside that card's grid cell - a cell that suddenly grows much taller than its
-// neighbours because one branch got expanded is exactly the "expanded node overlapping
-// another" problem we were asked to avoid. Instead, expanding a card pushes its subtree
-// into a brand new column to the right of the whole grid - matching the reference tool
-// (2 columns of direct reports, a 3rd column for whichever one gets expanded, a 4th if
-// something inside THAT gets expanded, and so on, recursively). Flexbox siblings never
-// overlap each other, so this also structurally guarantees no overlap - each column owns
-// its own horizontal slot and grows independently in height; see `.wrap-board-row` in
-// index.css.
+// each one once there are a lot of them). Past this count we switch to rendering EVERY
+// child inside one wrapped grid instead - nothing is hidden behind a button, the grid
+// just grows to as many rows as it needs to hold all of them. Column count is picked per
+// group (roughly square: ceil(sqrt(N))) so a group of 15 doesn't render as one 15-wide
+// strip or one 15-tall column - it comes out close to a 4x4 block, which is what actually
+// stops the "endless scroll" problem. Getting the whole block into view from there is
+// what the zoom / pan / Fit-to-Screen controls are for (see OrgCanvas's handleFitToScreen).
 const WRAP_THRESHOLD = 8;
-const WRAP_COLUMNS = 2;
+
+function gridColumnCount(total) {
+  return Math.max(2, Math.ceil(Math.sqrt(total)));
+}
 
 // Row-based layout (used by the horizontal children container: waterfall's non-leaf
-// case, and classic/horizontal layout modes). `renderChild(node, mode)` - see
-// WaterfallTreeGroup/ClassicTreeNodeGroup's `mode` prop for what 'cardOnly' and
-// 'childrenOnly' do.
+// case, and classic/horizontal layout modes).
 function RowChildren({ childNodes, renderChild }) {
   const total = childNodes.length;
 
@@ -262,41 +256,25 @@ function RowChildren({ childNodes, renderChild }) {
     );
   }
 
-  // Any card in the grid that's currently expanded gets a dedicated column of its own,
-  // in the order it appears, instead of growing its own grid cell.
-  const expandedChildren = childNodes.filter(
-    (c) => c.children && c.children.length > 0 && !c.isCollapsed
-  );
-
+  const columns = gridColumnCount(total);
   return (
-    <div className="wrap-board-row">
-      <div className="siblings-wrap-grid-wrapper">
-        <div className="overflow-connector-stem" />
-        <div
-          className="siblings-wrap-grid"
-          style={{ gridTemplateColumns: `repeat(${WRAP_COLUMNS}, 260px)` }}
-        >
-          {childNodes.map((childNode) => (
-            <div key={childNode.id} className="wrap-sibling-item">
-              {renderChild(childNode, 'cardOnly')}
-            </div>
-          ))}
-        </div>
+    <div className="siblings-wrap-grid-wrapper">
+      <div className="overflow-connector-stem" />
+      <div
+        className="siblings-wrap-grid"
+        style={{ gridTemplateColumns: `repeat(${columns}, 260px)` }}
+      >
+        {childNodes.map((childNode) => (
+          <div key={childNode.id} className="wrap-sibling-item">
+            {renderChild(childNode)}
+          </div>
+        ))}
       </div>
-
-      {expandedChildren.map((childNode) => (
-        <div key={`col-${childNode.id}`} className="wrap-expansion-column">
-          <div className="wrap-expansion-label">{childNode.name}&rsquo;s reports</div>
-          {renderChild(childNode, 'childrenOnly')}
-        </div>
-      ))}
     </div>
   );
 }
 
-// Column-based layout (used by the waterfall vertical leaf-stack). This only ever
-// receives leaf children (see isWaterfallVerticalStack below), so there's never a
-// grandchild to push into a 3rd column - just a fixed WRAP_COLUMNS-wide grid.
+// Column-based layout (used by the waterfall vertical leaf-stack).
 function StackChildren({ childNodes, renderChild }) {
   const total = childNodes.length;
 
@@ -312,11 +290,12 @@ function StackChildren({ childNodes, renderChild }) {
     );
   }
 
+  const columns = gridColumnCount(total);
   return (
     <div className="siblings-wrap-grid-wrapper stack-variant">
       <div
         className="siblings-wrap-grid"
-        style={{ gridTemplateColumns: `repeat(${WRAP_COLUMNS}, 260px)` }}
+        style={{ gridTemplateColumns: `repeat(${columns}, 260px)` }}
       >
         {childNodes.map((childNode) => (
           <div key={childNode.id} className="wrap-sibling-item">
@@ -358,13 +337,6 @@ function SiblingChildWrapper({ index, totalChildren, children }) {
 function WaterfallTreeGroup({
   node,
   depth = 0,
-  // 'full' (default): render the card + its children below/beside it, as always.
-  // 'cardOnly': render JUST the card - used for a cell inside a wrap grid, so an
-  //   expanded card's children don't grow that grid cell (see RowChildren).
-  // 'childrenOnly': render JUST this node's children subtree, skipping the card (it was
-  //   already rendered by a 'cardOnly' call elsewhere) - used for a wrap grid's
-  //   expansion column.
-  mode = 'full',
   cardMode,
   selectedId,
   searchMatchIds,
@@ -380,51 +352,35 @@ function WaterfallTreeGroup({
   const allChildrenAreLeaves = hasChildren && node.children.every(c => !c.children || c.children.length === 0);
   const isWaterfallVerticalStack = depth >= 1 && allChildrenAreLeaves;
 
-  const cardElement = (
-    <OrgNode
-      node={node}
-      isSelected={isSelected}
-      isSearchMatch={isSearchMatch}
-      focusedNodeId={focusedNodeId}
-      cardMode={cardMode}
-      onSelect={onSelect}
-      onToggleCollapse={onToggleCollapse}
-    />
-  );
-
-  const renderGrandchild = (childNode, childMode) => (
-    <WaterfallTreeGroup
-      node={childNode}
-      depth={depth + 1}
-      mode={childMode}
-      cardMode={cardMode}
-      selectedId={selectedId}
-      searchMatchIds={searchMatchIds}
-      focusedNodeId={focusedNodeId}
-      onSelect={onSelect}
-      onToggleCollapse={onToggleCollapse}
-    />
-  );
-
-  if (mode === 'cardOnly') {
-    return cardElement;
-  }
-
-  if (mode === 'childrenOnly') {
-    if (!showChildren) return null;
-    if (isWaterfallVerticalStack) {
-      return <StackChildren childNodes={node.children} renderChild={renderGrandchild} />;
-    }
-    return <RowChildren childNodes={node.children} renderChild={renderGrandchild} />;
-  }
-
   if (isWaterfallVerticalStack) {
     return (
       <div className="waterfall-node-group">
-        {cardElement}
+        <OrgNode
+          node={node}
+          isSelected={isSelected}
+          isSearchMatch={isSearchMatch}
+          focusedNodeId={focusedNodeId}
+          cardMode={cardMode}
+          onSelect={onSelect}
+          onToggleCollapse={onToggleCollapse}
+        />
 
         {showChildren && (
-          <StackChildren childNodes={node.children} renderChild={renderGrandchild} />
+          <StackChildren
+            childNodes={node.children}
+            renderChild={(childNode) => (
+              <WaterfallTreeGroup
+                node={childNode}
+                depth={depth + 1}
+                cardMode={cardMode}
+                selectedId={selectedId}
+                searchMatchIds={searchMatchIds}
+                focusedNodeId={focusedNodeId}
+                onSelect={onSelect}
+                onToggleCollapse={onToggleCollapse}
+              />
+            )}
+          />
         )}
       </div>
     );
@@ -432,12 +388,34 @@ function WaterfallTreeGroup({
 
   return (
     <div className="node-tree-group">
-      {cardElement}
+      <OrgNode
+        node={node}
+        isSelected={isSelected}
+        isSearchMatch={isSearchMatch}
+        focusedNodeId={focusedNodeId}
+        cardMode={cardMode}
+        onSelect={onSelect}
+        onToggleCollapse={onToggleCollapse}
+      />
 
       {showChildren && <div className="tree-parent-stem" />}
 
       {showChildren && (
-        <RowChildren childNodes={node.children} renderChild={renderGrandchild} />
+        <RowChildren
+          childNodes={node.children}
+          renderChild={(childNode) => (
+            <WaterfallTreeGroup
+              node={childNode}
+              depth={depth + 1}
+              cardMode={cardMode}
+              selectedId={selectedId}
+              searchMatchIds={searchMatchIds}
+              focusedNodeId={focusedNodeId}
+              onSelect={onSelect}
+              onToggleCollapse={onToggleCollapse}
+            />
+          )}
+        />
       )}
     </div>
   );
@@ -446,9 +424,6 @@ function WaterfallTreeGroup({
 function ClassicTreeNodeGroup({
   node,
   layoutMode,
-  // See WaterfallTreeGroup's `mode` prop for what 'cardOnly'/'childrenOnly' do - used
-  // the same way here for classic/horizontal layout's own wrap grid expansion columns.
-  mode = 'full',
   cardMode,
   selectedId,
   searchMatchIds,
@@ -463,49 +438,36 @@ function ClassicTreeNodeGroup({
   const isSelected = selectedId === node.id;
   const isSearchMatch = searchMatchIds ? searchMatchIds.has(node.id) : false;
 
-  const cardElement = (
-    <OrgNode
-      node={node}
-      isSelected={isSelected}
-      isSearchMatch={isSearchMatch}
-      focusedNodeId={focusedNodeId}
-      cardMode={cardMode}
-      onSelect={onSelect}
-      onToggleCollapse={onToggleCollapse}
-    />
-  );
-
-  const renderGrandchild = (childNode, childMode) => (
-    <ClassicTreeNodeGroup
-      node={childNode}
-      layoutMode={layoutMode}
-      mode={childMode}
-      cardMode={cardMode}
-      selectedId={selectedId}
-      searchMatchIds={searchMatchIds}
-      focusedNodeId={focusedNodeId}
-      onSelect={onSelect}
-      onToggleCollapse={onToggleCollapse}
-    />
-  );
-
-  if (mode === 'cardOnly') {
-    return cardElement;
-  }
-
-  if (mode === 'childrenOnly') {
-    if (!showChildren) return null;
-    return <RowChildren childNodes={node.children} renderChild={renderGrandchild} />;
-  }
-
   return (
     <div className={`node-tree-group ${isHorizontal ? 'horizontal' : ''}`}>
-      {cardElement}
+      <OrgNode
+        node={node}
+        isSelected={isSelected}
+        isSearchMatch={isSearchMatch}
+        focusedNodeId={focusedNodeId}
+        cardMode={cardMode}
+        onSelect={onSelect}
+        onToggleCollapse={onToggleCollapse}
+      />
 
       {!isHorizontal && showChildren && <div className="tree-parent-stem" />}
 
       {showChildren && (
-        <RowChildren childNodes={node.children} renderChild={renderGrandchild} />
+        <RowChildren
+          childNodes={node.children}
+          renderChild={(childNode) => (
+            <ClassicTreeNodeGroup
+              node={childNode}
+              layoutMode={layoutMode}
+              cardMode={cardMode}
+              selectedId={selectedId}
+              searchMatchIds={searchMatchIds}
+              focusedNodeId={focusedNodeId}
+              onSelect={onSelect}
+              onToggleCollapse={onToggleCollapse}
+            />
+          )}
+        />
       )}
     </div>
   );
