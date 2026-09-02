@@ -255,33 +255,57 @@ export default function App() {
     return buildOrgTree(members, collapseState);
   }, [members, collapseState]);
 
-  // Search Match IDs
+  // Search Match IDs. This MUST stay a pure computation with no state updates inside it -
+  // see the effect right below for why.
   const searchMatches = useMemo(() => {
     if (!search && departmentFilter === 'all' && levelFilter === 'all') {
       return null;
     }
-    const matchIds = new Set(filteredMembers.map(m => m.id));
-    
-    if (search.trim().length > 0) {
-      const ancestorsToExpand = new Set();
-      matchIds.forEach(id => {
-        const ancestors = getAncestorIds(id, memberMap);
-        ancestors.forEach(aId => ancestorsToExpand.add(aId));
-      });
+    return new Set(filteredMembers.map(m => m.id));
+  }, [search, departmentFilter, levelFilter, filteredMembers]);
 
-      if (ancestorsToExpand.size > 0) {
-        setCollapseState(prev => {
-          const next = { ...prev };
-          ancestorsToExpand.forEach(aId => {
-            delete next[aId];
-          });
-          return next;
-        });
-      }
+  // Auto-expand ancestors of the current text search matches, so a match deep in a
+  // collapsed branch is actually visible in the tree.
+  //
+  // This used to live inside the searchMatches useMemo above, calling setCollapseState
+  // directly from there. That's what was blanking the whole page on every keystroke:
+  // a useMemo callback runs DURING render, and calling a state setter during render (a)
+  // is exactly what React's "too many re-renders" safeguard (error #301) exists to catch
+  // - it throws and unmounts the whole app, hence the blank page - and (b) would have
+  // looped forever even without that safeguard, because `{ ...prev }` + `delete` always
+  // returns a NEW object reference even when nothing meaningful changed, which changes
+  // `collapseState` -> changes `memberMap` (buildOrgTree's own memo depends on it) ->
+  // re-runs this memo (memberMap is one of its deps) -> calls setCollapseState again,
+  // forever.
+  //
+  // Doing it in an effect fixes (a). Fixing (b) needs an actual bail-out: only touch
+  // state for ancestor ids that are RIGHT NOW marked collapsed, and skip calling
+  // setCollapseState entirely when there are none - so once those ids are expanded, the
+  // next run (triggered by the collapseState change) finds nothing left to do and stops,
+  // instead of continuing to produce new-but-equivalent state forever.
+  useEffect(() => {
+    if (!search || search.trim().length === 0 || !searchMatches || searchMatches.size === 0) {
+      return;
     }
 
-    return matchIds;
-  }, [search, departmentFilter, levelFilter, filteredMembers, memberMap]);
+    const idsToExpand = [];
+    searchMatches.forEach((id) => {
+      const ancestors = getAncestorIds(id, memberMap);
+      ancestors.forEach((aId) => {
+        if (collapseState[aId]) idsToExpand.push(aId);
+      });
+    });
+
+    if (idsToExpand.length === 0) return;
+
+    setCollapseState((prev) => {
+      const next = { ...prev };
+      idsToExpand.forEach((aId) => {
+        delete next[aId];
+      });
+      return next;
+    });
+  }, [search, searchMatches, memberMap, collapseState]);
 
   // On selecting an employee from Node Search Autocomplete:
   const handleSelectSearchResult = useCallback((member) => {
