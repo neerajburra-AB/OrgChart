@@ -511,6 +511,82 @@ body {
   bottom: -16px;
 }
 
+/* OVERFLOW HANDLING FOR MANAGERS WITH MANY DIRECT REPORTS (see MAX_VISIBLE_SIBLINGS
+   in OrgCanvas.jsx). Past the visible cap, the rest collapse into a "+N more" button;
+   expanding it reveals a bounded, wrapped grid instead of one more endless row/column,
+   so a manager with e.g. 50 reports no longer forces a very long scroll. */
+.siblings-overflow-toggle-wrapper,
+.siblings-overflow-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.siblings-overflow-grid-wrapper.stack-variant {
+  margin-left: 48px;
+  margin-top: 16px;
+  align-items: flex-start;
+}
+
+.overflow-connector-stem {
+  width: 2px;
+  height: 24px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.5);
+}
+
+.show-more-siblings-btn,
+.show-less-siblings-btn {
+  margin-top: 4px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  border: 1.5px dashed var(--accent-primary);
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.show-more-siblings-btn.stack-variant {
+  margin-top: 16px;
+  margin-left: 48px;
+  align-self: flex-start;
+}
+
+.show-more-siblings-btn:hover,
+.show-less-siblings-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
+}
+
+.siblings-overflow-grid {
+  /* CSS Grid with a fixed track size (not flex-wrap + max-width) is deliberate here:
+     this box sits inside several ancestors that shrink-wrap via `align-items: center`
+     (the rest of the tree layout), and a flex-wrap container's width in that kind of
+     shrink-to-fit context resolves to its narrowest content instead of its max-width
+     cap, so it never actually wraps - it just renders one column. Grid's explicit
+     `repeat(4, 260px)` gives the container a definite width up front, independent of
+     the shrink-to-fit chain around it, so it reliably wraps into rows of 4. */
+  display: grid;
+  grid-template-columns: repeat(4, 260px);
+  justify-content: center;
+  gap: 20px;
+  padding: 16px;
+  margin-bottom: 8px;
+  border: 1.5px dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.overflow-sibling-item {
+  display: flex;
+  justify-content: center;
+}
+
 /* Node Card Styling */
 .org-node-card {
   width: 260px;

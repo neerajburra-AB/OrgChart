@@ -175,6 +175,107 @@ export default function OrgCanvas({
   );
 }
 
+// Beyond this many direct reports under one manager, the extra ones collapse into a
+// "+N more" button instead of stretching the row/column indefinitely - that unbounded
+// growth was forcing a very long scroll (horizontal in row layouts, vertical in the
+// waterfall leaf-stack) for any manager with a large team. Clicking it reveals the rest
+// in a wrapped grid (bounded width, multiple rows) instead of one more single strip, so
+// growth stays bounded in both directions no matter how many direct reports there are.
+const MAX_VISIBLE_SIBLINGS = 8;
+
+// Row-based overflow (used by the horizontal children container: waterfall's non-leaf
+// case, and classic/horizontal layout modes).
+function RowChildren({ childNodes, renderChild }) {
+  const [showAll, setShowAll] = useState(false);
+  const total = childNodes.length;
+  const overflowing = total > MAX_VISIBLE_SIBLINGS;
+  // The main row always caps at MAX_VISIBLE_SIBLINGS, whether or not the overflow
+  // section below is expanded - only the overflow grid's own visibility toggles.
+  // (Using `!showAll` here too was a bug: it let ALL children re-render in the main
+  // row once expanded, duplicating the overflow ones a second time in the grid below.)
+  const visibleNodes = overflowing ? childNodes.slice(0, MAX_VISIBLE_SIBLINGS) : childNodes;
+  const hiddenNodes = overflowing ? childNodes.slice(MAX_VISIBLE_SIBLINGS) : [];
+
+  return (
+    <>
+      <div className="tree-children-container">
+        {visibleNodes.map((childNode, index) => (
+          <SiblingChildWrapper key={childNode.id} index={index} totalChildren={visibleNodes.length}>
+            {renderChild(childNode)}
+          </SiblingChildWrapper>
+        ))}
+      </div>
+
+      {overflowing && !showAll && (
+        <div className="siblings-overflow-toggle-wrapper">
+          <div className="overflow-connector-stem" />
+          <button className="show-more-siblings-btn" onClick={() => setShowAll(true)}>
+            +{hiddenNodes.length} more direct report{hiddenNodes.length === 1 ? '' : 's'}
+          </button>
+        </div>
+      )}
+
+      {overflowing && showAll && (
+        <div className="siblings-overflow-grid-wrapper">
+          <div className="overflow-connector-stem" />
+          <div className="siblings-overflow-grid">
+            {hiddenNodes.map((childNode) => (
+              <div key={childNode.id} className="overflow-sibling-item">
+                {renderChild(childNode)}
+              </div>
+            ))}
+          </div>
+          <button className="show-less-siblings-btn" onClick={() => setShowAll(false)}>
+            Show fewer
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Column-based overflow (used by the waterfall vertical leaf-stack).
+function StackChildren({ childNodes, renderChild }) {
+  const [showAll, setShowAll] = useState(false);
+  const total = childNodes.length;
+  const overflowing = total > MAX_VISIBLE_SIBLINGS;
+  // Same fix as RowChildren above: the main stack always caps at MAX_VISIBLE_SIBLINGS
+  // regardless of showAll, so the overflow grid never duplicates what's already shown.
+  const visibleNodes = overflowing ? childNodes.slice(0, MAX_VISIBLE_SIBLINGS) : childNodes;
+  const hiddenNodes = overflowing ? childNodes.slice(MAX_VISIBLE_SIBLINGS) : [];
+
+  return (
+    <div className="waterfall-vertical-stack">
+      {visibleNodes.map((childNode) => (
+        <div key={childNode.id} className="waterfall-stack-item">
+          {renderChild(childNode)}
+        </div>
+      ))}
+
+      {overflowing && !showAll && (
+        <button className="show-more-siblings-btn stack-variant" onClick={() => setShowAll(true)}>
+          +{hiddenNodes.length} more direct report{hiddenNodes.length === 1 ? '' : 's'}
+        </button>
+      )}
+
+      {overflowing && showAll && (
+        <div className="siblings-overflow-grid-wrapper stack-variant">
+          <div className="siblings-overflow-grid">
+            {hiddenNodes.map((childNode) => (
+              <div key={childNode.id} className="overflow-sibling-item">
+                {renderChild(childNode)}
+              </div>
+            ))}
+          </div>
+          <button className="show-less-siblings-btn" onClick={() => setShowAll(false)}>
+            Show fewer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SiblingChildWrapper({ index, totalChildren, children }) {
   const isOnlyChild = totalChildren === 1;
   const isFirstChild = index === 0;
@@ -234,22 +335,21 @@ function WaterfallTreeGroup({
         />
 
         {showChildren && (
-          <div className="waterfall-vertical-stack">
-            {node.children.map((childNode) => (
-              <div key={childNode.id} className="waterfall-stack-item">
-                <WaterfallTreeGroup
-                  node={childNode}
-                  depth={depth + 1}
-                  cardMode={cardMode}
-                  selectedId={selectedId}
-                  searchMatchIds={searchMatchIds}
-                  focusedNodeId={focusedNodeId}
-                  onSelect={onSelect}
-                  onToggleCollapse={onToggleCollapse}
-                />
-              </div>
-            ))}
-          </div>
+          <StackChildren
+            childNodes={node.children}
+            renderChild={(childNode) => (
+              <WaterfallTreeGroup
+                node={childNode}
+                depth={depth + 1}
+                cardMode={cardMode}
+                selectedId={selectedId}
+                searchMatchIds={searchMatchIds}
+                focusedNodeId={focusedNodeId}
+                onSelect={onSelect}
+                onToggleCollapse={onToggleCollapse}
+              />
+            )}
+          />
         )}
       </div>
     );
@@ -270,26 +370,21 @@ function WaterfallTreeGroup({
       {showChildren && <div className="tree-parent-stem" />}
 
       {showChildren && (
-        <div className="tree-children-container">
-          {node.children.map((childNode, index) => (
-            <SiblingChildWrapper
-              key={childNode.id}
-              index={index}
-              totalChildren={node.children.length}
-            >
-              <WaterfallTreeGroup
-                node={childNode}
-                depth={depth + 1}
-                cardMode={cardMode}
-                selectedId={selectedId}
-                searchMatchIds={searchMatchIds}
-                focusedNodeId={focusedNodeId}
-                onSelect={onSelect}
-                onToggleCollapse={onToggleCollapse}
-              />
-            </SiblingChildWrapper>
-          ))}
-        </div>
+        <RowChildren
+          childNodes={node.children}
+          renderChild={(childNode) => (
+            <WaterfallTreeGroup
+              node={childNode}
+              depth={depth + 1}
+              cardMode={cardMode}
+              selectedId={selectedId}
+              searchMatchIds={searchMatchIds}
+              focusedNodeId={focusedNodeId}
+              onSelect={onSelect}
+              onToggleCollapse={onToggleCollapse}
+            />
+          )}
+        />
       )}
     </div>
   );
@@ -327,26 +422,21 @@ function ClassicTreeNodeGroup({
       {!isHorizontal && showChildren && <div className="tree-parent-stem" />}
 
       {showChildren && (
-        <div className="tree-children-container">
-          {node.children.map((childNode, index) => (
-            <SiblingChildWrapper
-              key={childNode.id}
-              index={index}
-              totalChildren={node.children.length}
-            >
-              <ClassicTreeNodeGroup
-                node={childNode}
-                layoutMode={layoutMode}
-                cardMode={cardMode}
-                selectedId={selectedId}
-                searchMatchIds={searchMatchIds}
-                focusedNodeId={focusedNodeId}
-                onSelect={onSelect}
-                onToggleCollapse={onToggleCollapse}
-              />
-            </SiblingChildWrapper>
-          ))}
-        </div>
+        <RowChildren
+          childNodes={node.children}
+          renderChild={(childNode) => (
+            <ClassicTreeNodeGroup
+              node={childNode}
+              layoutMode={layoutMode}
+              cardMode={cardMode}
+              selectedId={selectedId}
+              searchMatchIds={searchMatchIds}
+              focusedNodeId={focusedNodeId}
+              onSelect={onSelect}
+              onToggleCollapse={onToggleCollapse}
+            />
+          )}
+        />
       )}
     </div>
   );
