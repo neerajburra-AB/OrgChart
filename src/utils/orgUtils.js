@@ -16,10 +16,19 @@ export function buildOrgTree(members, collapseState = {}) {
     });
   });
 
-  // Connect parents and children
+  // Connect parents and children.
+  // Note: a dataset can contain more than one node with no manager, or a managerId
+  // that doesn't match anyone (typos, deleted managers, bad imports) - this becomes
+  // more likely the larger the dataset. The first such node found becomes the root;
+  // any others are attached under that root instead of silently overwriting it and
+  // dropping their whole subtree from the chart.
   memberMap.forEach(node => {
     if (!node.managerId || !memberMap.has(node.managerId)) {
-      root = node;
+      if (!root) {
+        root = node;
+      } else if (node.id !== root.id) {
+        root.children.push(node);
+      }
     } else {
       const manager = memberMap.get(node.managerId);
       manager.children.push(node);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Eye, Edit3, Trash2, ArrowUpDown } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 
@@ -13,6 +13,7 @@ export default function ListView({
   const [sortAsc, setSortAsc] = useState(true);
 
   const handleSort = (field) => {
+    setPage(0);
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
@@ -21,17 +22,45 @@ export default function ListView({
     }
   };
 
-  const sortedMembers = [...members].sort((a, b) => {
-    let valA = a[sortField] || '';
-    let valB = b[sortField] || '';
-    
-    if (typeof valA === 'string') valA = valA.toLowerCase();
-    if (typeof valB === 'string') valB = valB.toLowerCase();
+  // Keep pagination in sync when the incoming (filtered) member list changes size,
+  // e.g. the user types into search - avoid landing on a now out-of-range page.
+  React.useEffect(() => {
+    setPage(0);
+  }, [members.length]);
 
-    if (valA < valB) return sortAsc ? -1 : 1;
-    if (valA > valB) return sortAsc ? 1 : -1;
-    return 0;
-  });
+  // O(1) manager lookup instead of allMembers.find(...) per row - the previous
+  // per-row linear scan turned a large directory (thousands of employees) into an
+  // O(n^2) render and made the Directory tab freeze for several seconds.
+  const membersById = useMemo(() => {
+    const map = new Map();
+    allMembers.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [allMembers]);
+
+  const sortedMembers = useMemo(() => {
+    return [...members].sort((a, b) => {
+      let valA = a[sortField] || '';
+      let valB = b[sortField] || '';
+
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+
+      if (valA < valB) return sortAsc ? -1 : 1;
+      if (valA > valB) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }, [members, sortField, sortAsc]);
+
+  // Paginate large directories so the table never has to mount thousands of rows
+  // at once - this is what actually keeps the tab responsive at scale.
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(sortedMembers.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pagedMembers = useMemo(() => {
+    const start = safePage * PAGE_SIZE;
+    return sortedMembers.slice(start, start + PAGE_SIZE);
+  }, [sortedMembers, safePage]);
 
   return (
     <div className="list-container">
@@ -67,9 +96,9 @@ export default function ListView({
               </td>
             </tr>
           ) : (
-            sortedMembers.map((member) => {
+            pagedMembers.map((member) => {
               const dept = DEPARTMENTS[member.department] || { name: member.department, color: '#6366f1' };
-              const manager = allMembers.find(m => m.id === member.managerId);
+              const manager = member.managerId ? membersById.get(member.managerId) : null;
 
               return (
                 <tr key={member.id}>
@@ -136,6 +165,28 @@ export default function ListView({
           )}
         </tbody>
       </table>
+
+      {pageCount > 1 && (
+        <div className="list-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '16px 0' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+          >
+            Previous
+          </button>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Page {safePage + 1} of {pageCount} &middot; {sortedMembers.length} employees
+          </span>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={safePage >= pageCount - 1}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

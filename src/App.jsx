@@ -26,6 +26,43 @@ const THEME_KEY = 'orgpulse_theme';
 // to the bundled public/data/members.json file below.
 const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1SA7KNxIUxZ5ed7KbaPSS7xva6O541RtMuwoTWPlQ-k6fsBzHeMq0VCWp9wUkKP9dq1y8-MzpgfJW/pub?gid=0&single=true&output=csv';
 
+// Large-dataset safety net: past this many employees, the Tree view starts fully
+// collapsed except the root and its direct reports, so the first render only has to
+// draw a handful of cards instead of the entire company. Small/medium datasets keep
+// the original fully-expanded-by-default behavior unchanged.
+const LARGE_DATASET_THRESHOLD = 200;
+const AUTO_EXPAND_DEPTH = 1; // 0 = only the root starts expanded, 1 = root + direct reports
+
+function computeDefaultCollapseState(memberList) {
+  if (!memberList || memberList.length <= LARGE_DATASET_THRESHOLD) {
+    return {};
+  }
+
+  const byId = new Map(memberList.map((m) => [m.id, m]));
+  const childrenOf = new Map();
+  memberList.forEach((m) => {
+    if (m.managerId && byId.has(m.managerId)) {
+      if (!childrenOf.has(m.managerId)) childrenOf.set(m.managerId, []);
+      childrenOf.get(m.managerId).push(m.id);
+    }
+  });
+
+  const root = memberList.find((m) => !m.managerId || !byId.has(m.managerId));
+  if (!root) return {};
+
+  const collapse = {};
+  const queue = [{ id: root.id, depth: 0 }];
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift();
+    const kids = childrenOf.get(id) || [];
+    if (kids.length > 0 && depth >= AUTO_EXPAND_DEPTH) {
+      collapse[id] = true;
+    }
+    kids.forEach((childId) => queue.push({ id: childId, depth: depth + 1 }));
+  }
+  return collapse;
+}
+
 export default function App() {
   // Members state initialized with INITIAL_MEMBERS fallback
   const [members, setMembers] = useState(() => {
@@ -94,6 +131,7 @@ export default function App() {
       const liveMembers = await loadLiveSheetMembers();
       if (liveMembers) {
         setMembers(liveMembers);
+        setCollapseState(computeDefaultCollapseState(liveMembers));
         return;
       }
 
@@ -109,11 +147,13 @@ export default function App() {
 
       if (Array.isArray(data) && data.length > 0) {
         setMembers(data);
+        setCollapseState(computeDefaultCollapseState(data));
       }
     } catch (err) {
       console.warn('JSON load fallback to default dataset:', err);
       // Fallback array guarantees NO blank/white screen under any condition
       setMembers(INITIAL_MEMBERS);
+      setCollapseState(computeDefaultCollapseState(INITIAL_MEMBERS));
     } finally {
       setIsJsonLoading(false);
     }
@@ -125,7 +165,13 @@ export default function App() {
 
   // Save to localStorage on change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(members));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(members));
+    } catch (err) {
+      // Large datasets can exceed the browser's localStorage quota; fail soft
+      // instead of throwing an uncaught error out of this effect.
+      console.warn('Could not persist members to localStorage (dataset may be too large):', err);
+    }
   }, [members]);
 
   // Theme State
@@ -263,7 +309,19 @@ export default function App() {
   const handleResetZoom = () => setZoom(1.0);
 
   // Expand / Collapse All Handlers
-  const handleExpandAll = () => setCollapseState({});
+  const handleExpandAll = () => {
+    // Expanding everything renders every employee's card at once - safe for small/
+    // medium orgs, but on a large dataset it can freeze the tab for several seconds
+    // (or longer). Warn before doing that instead of silently locking up the page.
+    if (members.length > LARGE_DATASET_THRESHOLD) {
+      const proceed = window.confirm(
+        `This will expand all ${members.length} employees at once, which can be slow ` +
+        `or freeze the page for a few seconds on this many records. Continue?`
+      );
+      if (!proceed) return;
+    }
+    setCollapseState({});
+  };
   const handleCollapseAll = () => {
     const nextCollapse = {};
     members.forEach(m => {
