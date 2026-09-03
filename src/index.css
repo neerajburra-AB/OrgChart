@@ -617,6 +617,22 @@ body {
   border-color: var(--accent-cyan);
 }
 
+/* Applied while a search/filter is active, to every rendered card that is neither a
+   match nor on the ancestor path leading to one (typically siblings that are only
+   visible because their parent had to open to reveal the path). Nothing is hidden -
+   the card is still fully rendered, still counted in "N reports", still clickable -
+   it's just faded so the actual path reads clearly against a manager's other 20+
+   direct reports instead of getting lost among them. */
+.org-node-card.dimmed {
+  opacity: 0.32;
+  filter: grayscale(0.5);
+}
+
+.org-node-card.dimmed:hover {
+  opacity: 0.75;
+  filter: grayscale(0.15);
+}
+
 /* "To Be Confirmed / Unknown RM" grouping node - visually distinct from a real
    employee card so it reads as a data-quality flag, not part of the real org. */
 .org-node-card.virtual-node {

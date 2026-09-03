@@ -7,6 +7,7 @@ export default function OrgCanvas({
   allMembers,
   selectedMember,
   searchMatches,
+  searchPathIds,
   focusedNodeId,
   zoom,
   layoutMode = 'waterfall', // 'waterfall' | 'classic' | 'horizontal'
@@ -190,6 +191,7 @@ export default function OrgCanvas({
             cardMode={cardMode}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
+            searchPathIds={searchPathIds}
             focusedNodeId={focusedNodeId}
             onSelect={onSelectMember}
             onToggleCollapse={onToggleCollapse}
@@ -201,6 +203,7 @@ export default function OrgCanvas({
             cardMode={cardMode}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
+            searchPathIds={searchPathIds}
             focusedNodeId={focusedNodeId}
             onSelect={onSelectMember}
             onToggleCollapse={onToggleCollapse}
@@ -340,6 +343,7 @@ function WaterfallTreeGroup({
   cardMode,
   selectedId,
   searchMatchIds,
+  searchPathIds,
   focusedNodeId,
   onSelect,
   onToggleCollapse
@@ -348,6 +352,11 @@ function WaterfallTreeGroup({
   const showChildren = hasChildren && !node.isCollapsed;
   const isSelected = selectedId === node.id;
   const isSearchMatch = searchMatchIds ? searchMatchIds.has(node.id) : false;
+  // A search/filter is active (searchPathIds is non-null) and this node isn't part of
+  // its path (match or ancestor) - still fully rendered (nothing is hidden), just faded
+  // so the actual path is easy to follow instead of getting lost among siblings that
+  // only appear because their parent had to open to reveal the path.
+  const isDimmed = !!searchPathIds && !searchPathIds.has(node.id);
 
   const allChildrenAreLeaves = hasChildren && node.children.every(c => !c.children || c.children.length === 0);
   const isWaterfallVerticalStack = depth >= 1 && allChildrenAreLeaves;
@@ -359,6 +368,7 @@ function WaterfallTreeGroup({
           node={node}
           isSelected={isSelected}
           isSearchMatch={isSearchMatch}
+          isDimmed={isDimmed}
           focusedNodeId={focusedNodeId}
           cardMode={cardMode}
           onSelect={onSelect}
@@ -375,6 +385,7 @@ function WaterfallTreeGroup({
                 cardMode={cardMode}
                 selectedId={selectedId}
                 searchMatchIds={searchMatchIds}
+                searchPathIds={searchPathIds}
                 focusedNodeId={focusedNodeId}
                 onSelect={onSelect}
                 onToggleCollapse={onToggleCollapse}
@@ -392,6 +403,7 @@ function WaterfallTreeGroup({
         node={node}
         isSelected={isSelected}
         isSearchMatch={isSearchMatch}
+        isDimmed={isDimmed}
         focusedNodeId={focusedNodeId}
         cardMode={cardMode}
         onSelect={onSelect}
@@ -410,6 +422,7 @@ function WaterfallTreeGroup({
               cardMode={cardMode}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
+              searchPathIds={searchPathIds}
               focusedNodeId={focusedNodeId}
               onSelect={onSelect}
               onToggleCollapse={onToggleCollapse}
@@ -427,6 +440,7 @@ function ClassicTreeNodeGroup({
   cardMode,
   selectedId,
   searchMatchIds,
+  searchPathIds,
   focusedNodeId,
   onSelect,
   onToggleCollapse
@@ -437,6 +451,7 @@ function ClassicTreeNodeGroup({
 
   const isSelected = selectedId === node.id;
   const isSearchMatch = searchMatchIds ? searchMatchIds.has(node.id) : false;
+  const isDimmed = !!searchPathIds && !searchPathIds.has(node.id);
 
   return (
     <div className={`node-tree-group ${isHorizontal ? 'horizontal' : ''}`}>
@@ -444,6 +459,7 @@ function ClassicTreeNodeGroup({
         node={node}
         isSelected={isSelected}
         isSearchMatch={isSearchMatch}
+        isDimmed={isDimmed}
         focusedNodeId={focusedNodeId}
         cardMode={cardMode}
         onSelect={onSelect}
@@ -462,6 +478,7 @@ function ClassicTreeNodeGroup({
               cardMode={cardMode}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
+              searchPathIds={searchPathIds}
               focusedNodeId={focusedNodeId}
               onSelect={onSelect}
               onToggleCollapse={onToggleCollapse}

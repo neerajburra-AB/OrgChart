@@ -308,6 +308,21 @@ export default function App() {
     node.isCollapsed = !!collapseState[node.id] && !(searchForceExpandIds && searchForceExpandIds.has(node.id));
   });
 
+  // Ids that make up the current search's "path": the matches themselves plus their
+  // ancestor chain. Rendered nodes NOT on this path (typically siblings that are only
+  // visible because their parent had to open to reveal the path) get visually dimmed
+  // instead of hidden - per Power BI parity, nothing actually disappears (still
+  // rendered, still counted, still clickable), but the path is easy to follow instead
+  // of getting lost among e.g. 30 unrelated siblings under the same manager.
+  const searchPathIds = useMemo(() => {
+    if (!searchMatches) return null;
+    const ids = new Set(searchMatches);
+    if (searchForceExpandIds) {
+      searchForceExpandIds.forEach((id) => ids.add(id));
+    }
+    return ids;
+  }, [searchMatches, searchForceExpandIds]);
+
   // On selecting an employee from Node Search Autocomplete:
   const handleSelectSearchResult = useCallback((member) => {
     if (!member) return;
@@ -508,6 +523,7 @@ export default function App() {
               allMembers={members}
               selectedMember={selectedMember}
               searchMatches={searchMatches}
+              searchPathIds={searchPathIds}
               focusedNodeId={focusedNodeId}
               zoom={zoom}
               layoutMode={layoutMode}

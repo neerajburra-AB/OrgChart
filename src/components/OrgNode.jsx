@@ -6,6 +6,7 @@ export default function OrgNode({
   node,
   isSelected,
   isSearchMatch,
+  isDimmed,
   focusedNodeId,
   cardMode,
   onSelect,
@@ -28,7 +29,7 @@ export default function OrgNode({
     return (
       <div
         data-node-id={node.id}
-        className={`org-node-card virtual-node ${isCompact ? 'compact' : ''} ${isFocused ? 'focused-pulse' : ''}`}
+        className={`org-node-card virtual-node ${isCompact ? 'compact' : ''} ${isFocused ? 'focused-pulse' : ''} ${isDimmed ? 'dimmed' : ''}`}
       >
         <div className="node-header">
           <div className="avatar-wrapper">
@@ -67,7 +68,7 @@ export default function OrgNode({
     <div
       data-node-id={node.id}
       data-department={node.department}
-      className={`org-node-card ${isCompact ? 'compact' : ''} ${isSelected ? 'selected' : ''} ${isSearchMatch ? 'search-match' : ''} ${isFocused ? 'focused-pulse' : ''}`}
+      className={`org-node-card ${isCompact ? 'compact' : ''} ${isSelected ? 'selected' : ''} ${isSearchMatch ? 'search-match' : ''} ${isFocused ? 'focused-pulse' : ''} ${isDimmed ? 'dimmed' : ''}`}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(node);
