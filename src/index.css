@@ -551,14 +551,26 @@ body {
 }
 
 .siblings-wrap-grid {
-  /* CSS Grid with a fixed track size (not flex-wrap + max-width) is deliberate here:
+  /* CSS Grid with an explicit track count (not flex-wrap + max-width) is deliberate here:
      this box sits inside several ancestors that shrink-wrap via `align-items: center`
      (the rest of the tree layout), and a flex-wrap container's width in that kind of
      shrink-to-fit context resolves to its narrowest content instead of its max-width
      cap, so it never actually wraps - it just renders one column. Grid's explicit
-     `repeat(N, 260px)` (N computed per group, roughly sqrt(total) for a near-square
-     block) gives the container a definite width up front, independent of the
-     shrink-to-fit chain around it, so it reliably wraps into multiple rows. */
+     `repeat(N, ...)` (N computed per group, roughly sqrt(total) for a near-square block)
+     gives the container a definite width up front, independent of the shrink-to-fit
+     chain around it, so it reliably wraps into multiple rows.
+
+     Each track is `minmax(260px, max-content)`, NOT a flat `260px`. A sibling inside
+     this grid can itself get expanded (e.g. by the search auto-expand effect reaching
+     a match nested inside one of these wrapped groups), and an expanded card's subtree
+     (children stacked/rowed below it) is routinely wider than one bare 260px card. A
+     fixed-width track can't grow for that, so the overflow used to spill out sideways
+     on top of the neighboring column - visually "overlapping" cards. `max-content` lets
+     the specific column that needs more room grow to fit its widest cell (CSS Grid
+     sizes a whole column from the tallest/widest content in ANY row of that column),
+     so an expanded subtree gets the space it needs instead of colliding with a sibling.
+     The trade-off is a slightly uneven grid (other cells in a widened column get extra
+     blank space) - an acceptable price for "nothing ever overlaps". */
   display: grid;
   justify-content: center;
   gap: 20px;

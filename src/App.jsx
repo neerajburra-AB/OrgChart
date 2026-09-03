@@ -255,8 +255,7 @@ export default function App() {
     return buildOrgTree(members, collapseState);
   }, [members, collapseState]);
 
-  // Search Match IDs. This MUST stay a pure computation with no state updates inside it -
-  // see the effect right below for why.
+  // Search Match IDs. Pure computation, no state updates inside it.
   const searchMatches = useMemo(() => {
     if (!search && departmentFilter === 'all' && levelFilter === 'all') {
       return null;
@@ -264,48 +263,50 @@ export default function App() {
     return new Set(filteredMembers.map(m => m.id));
   }, [search, departmentFilter, levelFilter, filteredMembers]);
 
-  // Auto-expand ancestors of the current text search matches, so a match deep in a
-  // collapsed branch is actually visible in the tree.
-  //
-  // This used to live inside the searchMatches useMemo above, calling setCollapseState
-  // directly from there. That's what was blanking the whole page on every keystroke:
-  // a useMemo callback runs DURING render, and calling a state setter during render (a)
-  // is exactly what React's "too many re-renders" safeguard (error #301) exists to catch
-  // - it throws and unmounts the whole app, hence the blank page - and (b) would have
-  // looped forever even without that safeguard, because `{ ...prev }` + `delete` always
-  // returns a NEW object reference even when nothing meaningful changed, which changes
-  // `collapseState` -> changes `memberMap` (buildOrgTree's own memo depends on it) ->
-  // re-runs this memo (memberMap is one of its deps) -> calls setCollapseState again,
-  // forever.
-  //
-  // Doing it in an effect fixes (a). Fixing (b) needs an actual bail-out: only touch
-  // state for ancestor ids that are RIGHT NOW marked collapsed, and skip calling
-  // setCollapseState entirely when there are none - so once those ids are expanded, the
-  // next run (triggered by the collapseState change) finds nothing left to do and stops,
-  // instead of continuing to produce new-but-equivalent state forever.
-  useEffect(() => {
+  // Ancestors of the CURRENT search matches, so a match deep in a collapsed branch is
+  // actually visible in the tree. Also pure - see the block right below for why this
+  // is never written into collapseState.
+  const searchForceExpandIds = useMemo(() => {
     if (!search || search.trim().length === 0 || !searchMatches || searchMatches.size === 0) {
-      return;
+      return null;
     }
-
-    const idsToExpand = [];
+    const ids = new Set();
     searchMatches.forEach((id) => {
-      const ancestors = getAncestorIds(id, memberMap);
-      ancestors.forEach((aId) => {
-        if (collapseState[aId]) idsToExpand.push(aId);
-      });
+      getAncestorIds(id, memberMap).forEach((aId) => ids.add(aId));
     });
+    return ids;
+  }, [search, searchMatches, memberMap]);
 
-    if (idsToExpand.length === 0) return;
-
-    setCollapseState((prev) => {
-      const next = { ...prev };
-      idsToExpand.forEach((aId) => {
-        delete next[aId];
-      });
-      return next;
-    });
-  }, [search, searchMatches, memberMap, collapseState]);
+  // Apply the search override on top of the user's actual collapse choices, fresh on
+  // every render - deliberately NOT via setCollapseState.
+  //
+  // An earlier version called setCollapseState from inside the searchMatches memo to
+  // "auto-expand" ancestors, which (a) crashed the whole app (calling a state setter
+  // during render trips React's error #301, unmounting everything - hence a blank page
+  // on every keystroke) and, separately, (b) even once moved into a proper effect, left
+  // every ancestor it opened stuck open forever: `delete next[id]` never puts a node
+  // back into collapseState once removed, so as soon as ANY earlier, broader search
+  // string (which typing a name necessarily passes through one character at a time -
+  // "R" alone already matches half the titles in the org, e.g. "Director", "Engineer")
+  // had forced a branch open, nothing ever closed it again, even after the search text
+  // moved on to something specific. That's what "all the nodes get expanded" actually
+  // was: not one bug, but every keystroke permanently accumulating more forced-open
+  // branches on top of the last, which also produces far more simultaneously-expanded
+  // content than the layout (or the user) ever intended - directly feeding the
+  // overlapping-cards symptom reported alongside it.
+  //
+  // The fix is to never persist this at all: recompute which nodes the CURRENT search
+  // needs open, every render, straight onto the tree buildOrgTree already produced for
+  // this collapseState (memberMap's nodes are fresh objects whenever `members` or
+  // `collapseState` changes, so mutating them here is just finishing this render's own
+  // derived data, not a side effect). Every node's isCollapsed is set from scratch each
+  // time - `!!collapseState[id]` overridden to false only for ids in the CURRENT
+  // `searchForceExpandIds` - so nothing can carry over from a previous keystroke, and a
+  // branch the user actually left collapsed stays collapsed again the moment the
+  // search text no longer needs it open.
+  memberMap.forEach((node) => {
+    node.isCollapsed = !!collapseState[node.id] && !(searchForceExpandIds && searchForceExpandIds.has(node.id));
+  });
 
   // On selecting an employee from Node Search Autocomplete:
   const handleSelectSearchResult = useCallback((member) => {

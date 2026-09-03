@@ -262,7 +262,7 @@ function RowChildren({ childNodes, renderChild }) {
       <div className="overflow-connector-stem" />
       <div
         className="siblings-wrap-grid"
-        style={{ gridTemplateColumns: `repeat(${columns}, 260px)` }}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(260px, max-content))` }}
       >
         {childNodes.map((childNode) => (
           <div key={childNode.id} className="wrap-sibling-item">
@@ -295,7 +295,7 @@ function StackChildren({ childNodes, renderChild }) {
     <div className="siblings-wrap-grid-wrapper stack-variant">
       <div
         className="siblings-wrap-grid"
-        style={{ gridTemplateColumns: `repeat(${columns}, 260px)` }}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(260px, max-content))` }}
       >
         {childNodes.map((childNode) => (
           <div key={childNode.id} className="wrap-sibling-item">
