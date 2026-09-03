@@ -1,6 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, MapPin, Users, AlertTriangle } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
+
+// First letter of up to the first two words of a name, e.g. "Elena Rostova" -> "ER".
+// Used as a network-independent avatar fallback - see the avatarFailed state below.
+function getInitials(name) {
+  if (!name) return '?';
+  const initials = name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('');
+  return initials || '?';
+}
 
 export default function OrgNode({
   node,
@@ -21,6 +29,19 @@ export default function OrgNode({
   const hasChildren = node.children && node.children.length > 0;
   const isCompact = cardMode === 'compact';
   const isFocused = focusedNodeId === node.id;
+
+  // Real photo if one is set and hasn't failed to load; otherwise a local, drawn
+  // initials badge - not another remote URL. The old fallback swapped to a SECOND
+  // ui-avatars.com URL on error, which is still a network request that can itself
+  // fail (or just be slow/blocked), leaving the <img> in a broken or perpetually-
+  // loading state. That's a real problem beyond just a missing photo: "Export PNG/PDF"
+  // captures the DOM with html2canvas, and a broken/half-loaded <img> gets captured as
+  // whatever the browser's tiny broken-image glyph looks like at that moment, which
+  // then gets scaled up by the export's 2x resolution - producing the blurry/pixelated
+  // avatar squares in exported charts. A same-origin, no-network initials badge can't
+  // fail to load at all, so it can't produce that artifact.
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const hasPhoto = !!node.avatar && !avatarFailed;
 
   // The synthetic "Unknown RM" grouping node (see UNASSIGNED_MANAGER_ID in orgUtils.js)
   // isn't a real employee - it doesn't have a profile to open, so clicking it shouldn't
@@ -82,14 +103,22 @@ export default function OrgNode({
 
       <div className="node-header">
         <div className="avatar-wrapper">
-          <img
-            src={node.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=random`}
-            alt={node.name}
-            className="node-avatar"
-            onError={(e) => {
-              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=6366f1&color=fff`;
-            }}
-          />
+          {hasPhoto ? (
+            <img
+              src={node.avatar}
+              alt={node.name}
+              className="node-avatar"
+              onError={() => setAvatarFailed(true)}
+            />
+          ) : (
+            <div
+              className="node-avatar node-avatar-initials"
+              style={{ background: deptInfo.color }}
+              title={node.name}
+            >
+              {getInitials(node.name)}
+            </div>
+          )}
           <div className={`status-dot ${node.status}`} title={`Status: ${node.status}`} />
         </div>
 

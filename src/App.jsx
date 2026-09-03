@@ -9,7 +9,7 @@ import MemberModal from './components/MemberModal';
 import ImportExportModal from './components/ImportExportModal';
 import OrgChartWorkspace from './components/OrgChartWorkspace';
 
-import { INITIAL_MEMBERS } from './data/initialData';
+import { INITIAL_MEMBERS, DEPARTMENTS } from './data/initialData';
 import {
   buildOrgTree,
   filterMembers,
@@ -33,6 +33,11 @@ const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1S
 // the original fully-expanded-by-default behavior unchanged.
 const LARGE_DATASET_THRESHOLD = 200;
 const AUTO_EXPAND_DEPTH = 1; // 0 = only the root starts expanded, 1 = root + direct reports
+
+// Preferred display order for known seniority levels in the filter dropdown. A level
+// value from the data that isn't in this map (a custom one the live Sheet introduces)
+// still shows up - see availableLevels below - just sorted after these, alphabetically.
+const LEVEL_RANK = { 'C-Level': 0, 'VP': 1, 'Director': 2, 'Lead': 3, 'Senior': 4, 'Mid': 5 };
 
 function computeDefaultCollapseState(memberList) {
   // The synthetic "Unknown RM" grouping node (see UNASSIGNED_MANAGER_ID / buildOrgTree)
@@ -240,6 +245,32 @@ export default function App() {
 
   // Import / Export Modal State
   const [importExportModalOpen, setImportExportModalOpen] = useState(false);
+
+  // Filter dropdown options, built from the ACTUAL loaded data rather than a hardcoded
+  // list. The old dropdowns only offered the 8 department keys and 6 level values baked
+  // into the demo dataset - selecting a filter did nothing useful once the live Sheet
+  // introduced a department or level string that isn't one of those (e.g. "Operations",
+  // "Manager"), because that value had no matching option to pick in the first place.
+  const availableDepartments = useMemo(() => {
+    const seen = new Set();
+    members.forEach((m) => { if (m.department) seen.add(m.department); });
+    return Array.from(seen).sort((a, b) => {
+      const nameA = (DEPARTMENTS[a]?.name || a).toLowerCase();
+      const nameB = (DEPARTMENTS[b]?.name || b).toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }, [members]);
+
+  const availableLevels = useMemo(() => {
+    const seen = new Set();
+    members.forEach((m) => { if (m.level) seen.add(m.level); });
+    return Array.from(seen).sort((a, b) => {
+      const rankA = LEVEL_RANK[a] ?? 999;
+      const rankB = LEVEL_RANK[b] ?? 999;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.localeCompare(b);
+    });
+  }, [members]);
 
   // Filtered members list
   const filteredMembers = useMemo(() => {
@@ -466,28 +497,8 @@ export default function App() {
         onOpenImportExport={() => setImportExportModalOpen(true)}
       />
 
-      {/* Controlled Org Chart Workspace with Collapsible Sidebar */}
-      <OrgChartWorkspace
-        members={members}
-        departmentFilter={departmentFilter}
-        setDepartmentFilter={setDepartmentFilter}
-        levelFilter={levelFilter}
-        setLevelFilter={setLevelFilter}
-        matchCount={filteredMembers.length}
-        totalCount={members.length}
-        layoutMode={layoutMode}
-        setLayoutMode={setLayoutMode}
-        cardMode={cardMode}
-        setCardMode={setCardMode}
-        showMatrixLines={showMatrixLines}
-        setShowMatrixLines={setShowMatrixLines}
-        onExpandAll={handleExpandAll}
-        onCollapseAll={handleCollapseAll}
-        onExportPng={handleExportPng}
-        onExportPdf={handleExportPdf}
-        onReloadJson={loadJsonMembers}
-        isJsonLoading={isJsonLoading}
-      >
+      {/* Main Workspace (the collapsible left sidebar was removed - see OrgChartWorkspace.jsx) */}
+      <OrgChartWorkspace>
         {/* Controls Toolbar (Shown in Tree view) */}
         {activeView === 'tree' && (
           <ControlsBar
@@ -506,6 +517,8 @@ export default function App() {
             setDepartmentFilter={setDepartmentFilter}
             levelFilter={levelFilter}
             setLevelFilter={setLevelFilter}
+            availableDepartments={availableDepartments}
+            availableLevels={availableLevels}
             onExpandAll={handleExpandAll}
             onCollapseAll={handleCollapseAll}
             matchCount={filteredMembers.length}

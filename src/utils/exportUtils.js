@@ -1,6 +1,36 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+// Resolves once every <img> inside `container` has either finished loading or
+// definitively failed - never left "in flight". html2canvas snapshots whatever is on
+// screen the instant it's called; a photo that's still mid-request (or a broken one
+// that's mid-retry) gets captured as the browser's tiny broken-image glyph, which then
+// gets scaled up by the 2x export resolution into a blurry/pixelated square. Most
+// avatars fall back to a local, no-network initials badge now (see OrgNode.jsx) so this
+// mainly matters for members who DO have a real photo URL - this makes sure that photo
+// is actually decoded and on screen before the capture, instead of racing it. Bounded
+// per image so one slow/unreachable host can't hang the whole export.
+async function waitForImages(container, perImageTimeoutMs = 4000) {
+  const images = Array.from(container.querySelectorAll('img'));
+  await Promise.all(images.map((img) => {
+    if (img.complete) {
+      // Already finished (loaded or errored) - `decode()` still confirms the bitmap is
+      // actually ready to paint, not just that the network request resolved.
+      return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      const done = () => {
+        img.removeEventListener('load', done);
+        img.removeEventListener('error', done);
+        resolve();
+      };
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+      setTimeout(done, perImageTimeoutMs);
+    });
+  }));
+}
+
 /**
  * Captures the entire org tree canvas at high resolution,
  * without UI overlays, background cutoffs, or zoom scale artifacts.
@@ -15,6 +45,10 @@ export async function captureChartCanvas(viewportElem, theme = 'dark') {
   // Temporarily reset transform for unscaled 1:1 render capture
   viewportElem.style.transform = 'none';
   viewportElem.style.transition = 'none';
+
+  // Make sure every avatar photo is actually loaded (or has given up) before the
+  // snapshot - see waitForImages above.
+  await waitForImages(viewportElem);
 
   // Measure full tree container dimensions
   const nodeCards = viewportElem.querySelectorAll('.org-node-card');
@@ -60,12 +94,29 @@ export async function captureChartCanvas(viewportElem, theme = 'dark') {
       height: exportHeight,
       windowWidth: exportWidth,
       windowHeight: exportHeight,
+      // Safety net on top of waitForImages() above: if some image still hasn't settled
+      // (a slow host, not just a broken one), don't let it block the capture forever -
+      // html2canvas gives up on that one image after this many ms and proceeds.
+      imageTimeout: 8000,
       onclone: (clonedDoc) => {
         const clonedViewport = clonedDoc.querySelector('.tree-viewport');
         if (clonedViewport) {
           clonedViewport.style.transform = 'none';
           clonedViewport.style.transition = 'none';
         }
+
+        // `backdrop-filter` (the glass/blur effect behind every card) isn't part of
+        // html2canvas's supported CSS - it silently ignores it, so the export was
+        // already never showing the real frosted-glass look. Left alone, the card's
+        // background color underneath is a translucent rgba() meant to be paired with
+        // that blur; without it, it just shows through to whatever's behind, which can
+        // look inconsistently hazy across a large chart. Forcing a plain opaque
+        // background on cards for the export only fixes that mismatch instead of
+        // leaving it to accident.
+        clonedDoc.querySelectorAll('.org-node-card').forEach((card) => {
+          card.style.backdropFilter = 'none';
+          card.style.background = theme === 'light' ? '#ffffff' : '#111827';
+        });
       }
     });
 

@@ -34,6 +34,8 @@ export default function ControlsBar({
   setDepartmentFilter,
   levelFilter,
   setLevelFilter,
+  availableDepartments = [],
+  availableLevels = [],
   onExpandAll,
   onCollapseAll,
   matchCount,
@@ -77,9 +79,14 @@ export default function ControlsBar({
           onChange={(e) => setDepartmentFilter(e.target.value)}
         >
           <option value="all">All Departments</option>
-          {Object.keys(DEPARTMENTS).map(deptKey => (
+          {/* Built from the departments actually present in the loaded data (see
+              availableDepartments in App.jsx) - not a hardcoded list - so a department
+              string the live Sheet introduces always has a matching option. Falls back
+              to DEPARTMENTS' friendly name for the known keys, or the raw value for
+              anything custom. */}
+          {availableDepartments.map(deptKey => (
             <option key={deptKey} value={deptKey}>
-              {DEPARTMENTS[deptKey].name}
+              {DEPARTMENTS[deptKey]?.name || deptKey}
             </option>
           ))}
         </select>
@@ -90,12 +97,10 @@ export default function ControlsBar({
           onChange={(e) => setLevelFilter(e.target.value)}
         >
           <option value="all">All Seniority Levels</option>
-          <option value="C-Level">C-Level</option>
-          <option value="VP">VP</option>
-          <option value="Director">Director</option>
-          <option value="Lead">Lead</option>
-          <option value="Senior">Senior</option>
-          <option value="Mid">Mid</option>
+          {/* Same idea as the department list above - see availableLevels in App.jsx. */}
+          {availableLevels.map(level => (
+            <option key={level} value={level}>{level}</option>
+          ))}
         </select>
 
         {(departmentFilter !== 'all' || levelFilter !== 'all') && (
