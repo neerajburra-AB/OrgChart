@@ -397,6 +397,56 @@ body {
 
 /* STRICT SUBTREE BOUNDING BOX TREE SYSTEM (Reingold-Tilford) */
 
+/* This layout nests plain flexbox containers per subtree - it does NOT precompute
+   subtree widths bottom-up the way a real Reingold-Tilford layout does, so it has no
+   actual guarantee that two unrelated branches elsewhere in this same giant tree never
+   land at overlapping screen coordinates. That happens routinely in a real, uneven org:
+   confirmed live (2026-09-08) that a manager with a very deep/tall subtree (e.g.
+   Shreyas Maheshbhai Patel's branch) produces a `.tree-child-node-wrapper` whose own box
+   - sized to contain that whole subtree, not just its own 260px card - was over 1000px
+   tall and physically overlapped a totally unrelated manager's row of direct reports
+   (Rajesh Bhalchandra Narvankar's) at that same X position. Every one of these structural
+   wrapper divs is otherwise invisible (no background, no border - only the thin connector
+   lines inside them are ever drawn), but being invisible does not make a div's box
+   click/hover-transparent by default: a browser hit-tests an element's full box even
+   where nothing is painted. Since these wrappers happen to sit ON TOP (later in DOM/paint
+   order) of whichever real cards their oversized box coincidentally covers, they were
+   silently swallowing hover and clicks meant for those cards - reported as specific
+   cards (e.g. Vikram Baxi, Neeraj Burra) "not responding" while their neighbors worked
+   fine, with no visible sign anything was wrong.
+   Rather than rewrite this into a true collision-free tree algorithm (a much larger
+   change), every purely-structural/decorative element below - every wrapper that exists
+   only to position a card or draw a connector line, never to be clicked itself - is
+   pointer-events:none, so the browser skips it during hit-testing entirely and the
+   event falls through to whatever real, visible element is actually there instead. Only
+   .org-node-card and .expand-toggle-btn keep (explicit, for clarity) pointer-events:auto -
+   nothing else in this tree has a click/hover handler of its own. Verified live by
+   temporarily disabling pointer-events on Shreyas's overlapping wrapper and re-checking
+   elementFromPoint() on Vikram Baxi's and Neeraj Burra's cards: both correctly resolved
+   to themselves afterward. */
+.node-tree-group,
+.waterfall-node-group,
+.tree-children-container,
+.tree-child-node-wrapper,
+.tree-parent-stem,
+.tree-child-horizontal-line,
+.tree-child-vertical-line,
+.waterfall-vertical-stack,
+.waterfall-stack-item,
+.waterfall-stack-item::before,
+.waterfall-stack-item::after,
+.siblings-wrap-grid-wrapper,
+.siblings-wrap-grid,
+.wrap-sibling-item,
+.overflow-connector-stem {
+  pointer-events: none;
+}
+
+.org-node-card,
+.expand-toggle-btn {
+  pointer-events: auto;
+}
+
 .node-tree-group {
   display: flex;
   flex-direction: column;
