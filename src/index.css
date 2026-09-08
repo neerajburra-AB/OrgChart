@@ -1360,30 +1360,6 @@ body {
 }
 
 /* ==========================================================================
-   EXPORT BUTTONS & LOADING SPINNER
-   ========================================================================== */
-.export-btn {
-  font-size: 12px !important;
-  padding: 4px 10px !important;
-  transition: all 0.2s ease !important;
-}
-
-.export-btn:hover {
-  background: rgba(99, 102, 241, 0.15) !important;
-  color: var(--accent-primary) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* ==========================================================================
    INTERACTIVE MINI-MAP WIDGET STYLES
    ========================================================================== */
 .minimap-widget {

@@ -12,10 +12,8 @@ export default function OrgCanvas({
   zoom,
   layoutMode = 'waterfall', // 'waterfall' | 'classic' | 'horizontal'
   cardMode,
-  showMatrixLines,
   onSelectMember,
   onToggleCollapse,
-  onRegisterViewportRef,
   onZoomChange,
   onRegisterFitToScreen
 }) {
@@ -28,13 +26,6 @@ export default function OrgCanvas({
 
   const hasInitializedRef = useRef(false);
   const prevLayoutModeRef = useRef(layoutMode);
-
-  // Expose viewportRef to parent (for PNG/PDF export)
-  useEffect(() => {
-    if (onRegisterViewportRef && viewportRef.current) {
-      onRegisterViewportRef(viewportRef.current);
-    }
-  }, [onRegisterViewportRef]);
 
   // Center tree on initial load or layout mode change
   useEffect(() => {

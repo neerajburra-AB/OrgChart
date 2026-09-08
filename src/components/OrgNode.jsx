@@ -33,13 +33,9 @@ export default function OrgNode({
   // Real photo if one is set and hasn't failed to load; otherwise a local, drawn
   // initials badge - not another remote URL. The old fallback swapped to a SECOND
   // ui-avatars.com URL on error, which is still a network request that can itself
-  // fail (or just be slow/blocked), leaving the <img> in a broken or perpetually-
-  // loading state. That's a real problem beyond just a missing photo: "Export PNG/PDF"
-  // captures the DOM with html2canvas, and a broken/half-loaded <img> gets captured as
-  // whatever the browser's tiny broken-image glyph looks like at that moment, which
-  // then gets scaled up by the export's 2x resolution - producing the blurry/pixelated
-  // avatar squares in exported charts. A same-origin, no-network initials badge can't
-  // fail to load at all, so it can't produce that artifact.
+  // fail (or just be slow/blocked), leaving the card showing the browser's tiny
+  // broken-image glyph instead of a missing photo looking intentional. A same-origin,
+  // no-network initials badge can't fail to load at all, so it can't produce that.
   const [avatarFailed, setAvatarFailed] = useState(false);
   const hasPhoto = !!node.avatar && !avatarFailed;
 

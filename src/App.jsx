@@ -16,7 +16,6 @@ import {
   getAncestorIds,
   UNASSIGNED_MANAGER_ID
 } from './utils/orgUtils';
-import { exportToPNG, exportToPDF } from './utils/exportUtils';
 import * as XLSX from 'xlsx';
 
 const STORAGE_KEY = 'orgpulse_members_data';
@@ -103,6 +102,7 @@ export default function App() {
     name: row.name ?? '',
     title: row.title ?? '',
     department: row.department ?? '',
+    entity: row.entity ?? '',
     email: row.email ?? '',
     phone: row.phone ?? '',
     location: row.location ?? '',
@@ -208,6 +208,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
+  const [entityFilter, setEntityFilter] = useState('all');
 
   // Focused Node State (for Auto-Focus Camera Centering & Pulsing Glow)
   const [focusedNodeId, setFocusedNodeId] = useState(null);
@@ -216,7 +217,6 @@ export default function App() {
   const [zoom, setZoom] = useState(1);
   const [layoutMode, setLayoutMode] = useState('waterfall'); // 'waterfall' | 'classic' | 'horizontal'
   const [cardMode, setCardMode] = useState('detailed'); // 'detailed' | 'compact'
-  const [showMatrixLines, setShowMatrixLines] = useState(true);
 
   // Tree Node Collapse State map { nodeId: boolean }
   const [collapseState, setCollapseState] = useState({});
@@ -224,16 +224,9 @@ export default function App() {
   // Selected Member for Side Drawer
   const [selectedMember, setSelectedMember] = useState(null);
 
-  // Viewport DOM Element reference for Export PNG/PDF
-  const viewportElemRef = useRef(null);
-
   // OrgCanvas registers its "fit whole tree into view" function here so the toolbar
   // button (which lives outside OrgCanvas) can trigger it.
   const fitToScreenRef = useRef(null);
-
-  const handleRegisterViewportRef = useCallback((elem) => {
-    viewportElemRef.current = elem;
-  }, []);
 
   // Modal State (Add / Edit)
   const [modalState, setModalState] = useState({
@@ -272,14 +265,24 @@ export default function App() {
     });
   }, [members]);
 
+  // Same idea, for the 'entity' column (a newer addition to the live Sheet, alongside
+  // department/level). Sorted alphabetically since there's no known preferred order like
+  // LEVEL_RANK for seniority levels.
+  const availableEntities = useMemo(() => {
+    const seen = new Set();
+    members.forEach((m) => { if (m.entity) seen.add(m.entity); });
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [members]);
+
   // Filtered members list
   const filteredMembers = useMemo(() => {
     return filterMembers(members, {
       search,
       department: departmentFilter,
-      level: levelFilter
+      level: levelFilter,
+      entity: entityFilter
     });
-  }, [members, search, departmentFilter, levelFilter]);
+  }, [members, search, departmentFilter, levelFilter, entityFilter]);
 
   // Build tree data recursively using buildOrgTree
   const { root: treeRoot, memberMap } = useMemo(() => {
@@ -288,11 +291,11 @@ export default function App() {
 
   // Search Match IDs. Pure computation, no state updates inside it.
   const searchMatches = useMemo(() => {
-    if (!search && departmentFilter === 'all' && levelFilter === 'all') {
+    if (!search && departmentFilter === 'all' && levelFilter === 'all' && entityFilter === 'all') {
       return null;
     }
     return new Set(filteredMembers.map(m => m.id));
-  }, [search, departmentFilter, levelFilter, filteredMembers]);
+  }, [search, departmentFilter, levelFilter, entityFilter, filteredMembers]);
 
   // Ancestors of the CURRENT search matches, so a match deep in a collapsed branch is
   // actually visible in the tree. Also pure - see the block right below for why this
@@ -376,19 +379,6 @@ export default function App() {
       setFocusedNodeId(null);
     }, 2500);
   }, [memberMap]);
-
-  // Export PNG & PDF Handlers
-  const handleExportPng = useCallback(async () => {
-    if (viewportElemRef.current) {
-      await exportToPNG(viewportElemRef.current, theme);
-    }
-  }, [theme]);
-
-  const handleExportPdf = useCallback(async () => {
-    if (viewportElemRef.current) {
-      await exportToPDF(viewportElemRef.current, theme);
-    }
-  }, [theme]);
 
   // Zoom Handlers
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.15, 2.0));
@@ -511,20 +501,19 @@ export default function App() {
             setLayoutMode={setLayoutMode}
             cardMode={cardMode}
             setCardMode={setCardMode}
-            showMatrixLines={showMatrixLines}
-            setShowMatrixLines={setShowMatrixLines}
             departmentFilter={departmentFilter}
             setDepartmentFilter={setDepartmentFilter}
             levelFilter={levelFilter}
             setLevelFilter={setLevelFilter}
+            entityFilter={entityFilter}
+            setEntityFilter={setEntityFilter}
             availableDepartments={availableDepartments}
             availableLevels={availableLevels}
+            availableEntities={availableEntities}
             onExpandAll={handleExpandAll}
             onCollapseAll={handleCollapseAll}
             matchCount={filteredMembers.length}
             totalCount={members.length}
-            onExportPng={handleExportPng}
-            onExportPdf={handleExportPdf}
           />
         )}
 
@@ -541,10 +530,8 @@ export default function App() {
               zoom={zoom}
               layoutMode={layoutMode}
               cardMode={cardMode}
-              showMatrixLines={showMatrixLines}
               onSelectMember={(member) => setSelectedMember(member)}
               onToggleCollapse={handleToggleCollapse}
-              onRegisterViewportRef={handleRegisterViewportRef}
               onZoomChange={setZoom}
               onRegisterFitToScreen={(fn) => { fitToScreenRef.current = fn; }}
             />

@@ -1,20 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
   Maximize2,
-  GitMerge, 
-  GitBranch, 
-  ArrowLeftRight, 
-  ChevronsDown, 
+  GitMerge,
+  GitBranch,
+  ArrowLeftRight,
+  ChevronsDown,
   ChevronsUp,
   SlidersHorizontal,
-  Filter,
-  Sparkles,
-  Image as ImageIcon,
-  FileText,
-  Loader2
+  Filter
 } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 
@@ -28,42 +24,20 @@ export default function ControlsBar({
   setLayoutMode,
   cardMode,
   setCardMode,
-  showMatrixLines,
-  setShowMatrixLines,
   departmentFilter,
   setDepartmentFilter,
   levelFilter,
   setLevelFilter,
+  entityFilter,
+  setEntityFilter,
   availableDepartments = [],
   availableLevels = [],
+  availableEntities = [],
   onExpandAll,
   onCollapseAll,
   matchCount,
-  totalCount,
-  onExportPng,
-  onExportPdf
+  totalCount
 }) {
-  const [exportingPng, setExportingPng] = useState(false);
-  const [exportingPdf, setExportingPdf] = useState(false);
-
-  const handlePngClick = async () => {
-    setExportingPng(true);
-    try {
-      await onExportPng();
-    } finally {
-      setExportingPng(false);
-    }
-  };
-
-  const handlePdfClick = async () => {
-    setExportingPdf(true);
-    try {
-      await onExportPdf();
-    } finally {
-      setExportingPdf(false);
-    }
-  };
-
   return (
     <div className="controls-toolbar">
       {/* Left: Department & Level Filters */}
@@ -103,7 +77,21 @@ export default function ControlsBar({
           ))}
         </select>
 
-        {(departmentFilter !== 'all' || levelFilter !== 'all') && (
+        <select
+          className="select-box"
+          value={entityFilter}
+          onChange={(e) => setEntityFilter(e.target.value)}
+        >
+          <option value="all">All Entities</option>
+          {/* Same idea as Department/Level above - built from the 'entity' column
+              actually present in the loaded data (see availableEntities in App.jsx),
+              not a hardcoded list. */}
+          {availableEntities.map(entity => (
+            <option key={entity} value={entity}>{entity}</option>
+          ))}
+        </select>
+
+        {(departmentFilter !== 'all' || levelFilter !== 'all' || entityFilter !== 'all') && (
           <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>
             Showing {matchCount} of {totalCount}
           </span>
@@ -141,23 +129,6 @@ export default function ControlsBar({
 
         <div style={{ height: 16, width: 1, background: 'var(--border-subtle)' }} />
 
-        {/* Matrix Lines Toggle */}
-        <button
-          className={`btn btn-secondary ${showMatrixLines ? 'active' : ''}`}
-          style={{ 
-            padding: '4px 10px', 
-            fontSize: 12,
-            background: showMatrixLines ? 'rgba(139, 92, 246, 0.2)' : undefined,
-            color: showMatrixLines ? '#8b5cf6' : undefined,
-            borderColor: showMatrixLines ? 'rgba(139, 92, 246, 0.4)' : undefined
-          }}
-          onClick={() => setShowMatrixLines(!showMatrixLines)}
-          title="Toggle Dotted Matrix Reporting Lines"
-        >
-          <Sparkles size={14} />
-          <span>Matrix Lines</span>
-        </button>
-
         <button
           className="btn btn-secondary"
           style={{ padding: '4px 10px', fontSize: 12 }}
@@ -182,29 +153,6 @@ export default function ControlsBar({
           title="Collapse All Branches"
         >
           <ChevronsUp size={16} />
-        </button>
-
-        <div style={{ height: 16, width: 1, background: 'var(--border-subtle)' }} />
-
-        {/* EXPORT TO PNG & PDF BUTTONS */}
-        <button
-          className="btn btn-secondary export-btn"
-          onClick={handlePngClick}
-          disabled={exportingPng}
-          title="Export high-resolution PNG image"
-        >
-          {exportingPng ? <Loader2 size={14} className="spin" /> : <ImageIcon size={14} />}
-          <span>{exportingPng ? 'Exporting...' : 'Export PNG'}</span>
-        </button>
-
-        <button
-          className="btn btn-secondary export-btn"
-          onClick={handlePdfClick}
-          disabled={exportingPdf}
-          title="Export high-resolution PDF document"
-        >
-          {exportingPdf ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
-          <span>{exportingPdf ? 'Exporting...' : 'Export PDF'}</span>
         </button>
       </div>
 

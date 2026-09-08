@@ -169,11 +169,11 @@ export function getAncestorIds(memberId, memberMap) {
 /**
  * Filter org members by search term, department, and level
  */
-export function filterMembers(members, { search = '', department = 'all', level = 'all', status = 'all' }) {
+export function filterMembers(members, { search = '', department = 'all', level = 'all', status = 'all', entity = 'all' }) {
   const query = search.toLowerCase().trim();
 
   return members.filter(m => {
-    const matchesQuery = !query || 
+    const matchesQuery = !query ||
       m.name.toLowerCase().includes(query) ||
       m.title.toLowerCase().includes(query) ||
       m.email.toLowerCase().includes(query) ||
@@ -183,8 +183,9 @@ export function filterMembers(members, { search = '', department = 'all', level 
     const matchesDept = department === 'all' || m.department === department;
     const matchesLevel = level === 'all' || m.level === level;
     const matchesStatus = status === 'all' || m.status === status;
+    const matchesEntity = entity === 'all' || m.entity === entity;
 
-    return matchesQuery && matchesDept && matchesLevel && matchesStatus;
+    return matchesQuery && matchesDept && matchesLevel && matchesStatus && matchesEntity;
   });
 }
 
