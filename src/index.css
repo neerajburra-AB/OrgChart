@@ -617,6 +617,30 @@ body {
   border-color: var(--accent-cyan);
 }
 
+/* Without these, hovering a card that is currently .selected or .search-match visibly
+   does nothing - both rules above sit AFTER .org-node-card:hover in this file with the
+   exact same specificity (one base class + one modifier), so the cascade lets them win
+   over :hover's box-shadow/border-color/background for as long as the card carries that
+   class, even while the mouse is actually over it. .search-match additionally runs an
+   infinite `animation` (pulseMatch), and a running CSS animation overrides a plain
+   property value from :hover regardless of specificity - so a live search match never
+   got the hover glow at all, not even briefly. Net effect: whichever card is currently
+   selected/opened, or currently matches the search box, feels "unresponsive" on hover
+   compared to every plain card around it - reported as e.g. Vikram Baxi/Neeraj Burra
+   not reacting to mouse hover like their neighbors. Fix follows the same explicit
+   "state + :hover" override pattern already used below for .dimmed:hover - still show
+   the selected/matched look, but layer the hover lift/glow on top instead of losing it. */
+.org-node-card.selected:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 0 0 2px var(--accent-primary), var(--shadow-lg), var(--shadow-glow);
+  background: var(--bg-card-hover);
+}
+
+.org-node-card.search-match:hover {
+  transform: translateY(-4px) scale(1.02);
+  background: var(--bg-card-hover);
+}
+
 /* Applied while a search/filter is active, to every rendered card that is neither a
    match nor on the ancestor path leading to one (typically siblings that are only
    visible because their parent had to open to reveal the path). Nothing is hidden -
