@@ -2,6 +2,29 @@
 // below. Chosen to be extremely unlikely to collide with a real employee id from the sheet.
 export const UNASSIGNED_MANAGER_ID = '__unassigned_rm__';
 
+// Preferred display order for known seniority levels in filter/form dropdowns. A level
+// value from the data that isn't in this map (a custom one the live Sheet introduces)
+// still shows up - see getUniqueSortedValues below - just sorted after these, alphabetically.
+export const LEVEL_RANK = { 'C-Level': 0, 'VP': 1, 'Director': 2, 'Lead': 3, 'Senior': 4, 'Mid': 5 };
+
+// Shared by App.jsx's filter dropdowns and MemberModal's Add/Edit form dropdowns, so both
+// always offer exactly the values actually present in the loaded data - never a hardcoded
+// list that can silently exclude a real department/level/entity string from the live Sheet.
+export function getUniqueSortedValues(members, field, rankMap) {
+  const seen = new Set();
+  members.forEach((m) => { if (m[field]) seen.add(m[field]); });
+  const values = Array.from(seen);
+  if (rankMap) {
+    return values.sort((a, b) => {
+      const rankA = rankMap[a] ?? 999;
+      const rankB = rankMap[b] ?? 999;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.localeCompare(b);
+    });
+  }
+  return values.sort((a, b) => a.localeCompare(b));
+}
+
 /**
  * Converts a flat array of org members into a nested tree structure
  */

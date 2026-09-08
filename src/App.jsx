@@ -14,17 +14,71 @@ import {
   buildOrgTree,
   filterMembers,
   getAncestorIds,
+  getUniqueSortedValues,
+  LEVEL_RANK,
   UNASSIGNED_MANAGER_ID
 } from './utils/orgUtils';
 import * as XLSX from 'xlsx';
 
 const STORAGE_KEY = 'orgpulse_members_data';
 const THEME_KEY = 'orgpulse_theme';
+const EDIT_PIN_KEY = 'orgpulse_edit_pin';
 
 // Live data source: a Google Sheet published as CSV (File > Share > Publish to web > CSV).
 // Update the URL below whenever you republish a new Sheet. Leave it as '' to skip straight
 // to the bundled public/data/members.json file below.
 const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1SA7KNxIUxZ5ed7KbaPSS7xva6O541RtMuwoTWPlQ-k6fsBzHeMq0VCWp9wUkKP9dq1y8-MzpgfJW/pub?gid=0&single=true&output=csv';
+
+// Write-back target: a Google Apps Script Web App bound to the same Sheet (see
+// apps-script/Code.gs in the repo). LIVE_SHEET_CSV_URL above is read-only (a published-CSV
+// link can't accept writes), so Add/Edit/Delete go through this separate endpoint instead,
+// which actually edits the Sheet's rows. Leave '' to disable write-back entirely - Add/Edit/
+// Delete will then show an error instead of silently only changing the local browser state.
+const LIVE_SHEET_WRITE_URL = 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+// Posts one save/delete request to the Apps Script Web App above. Sent as text/plain (not
+// application/json) specifically to keep this a CORS "simple request" - a JSON content-type
+// triggers a preflight OPTIONS request, which Apps Script Web Apps don't handle, and the
+// whole call would fail. The script itself still does `JSON.parse(e.postData.contents)`.
+// Returns true on a confirmed write, false otherwise (and shows the user why via alert).
+async function writeToSheet(payload) {
+  if (!LIVE_SHEET_WRITE_URL || LIVE_SHEET_WRITE_URL === 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE') {
+    window.alert(
+      'Saving to the Sheet is not set up yet (LIVE_SHEET_WRITE_URL is empty in App.jsx). ' +
+      'This change was NOT saved anywhere - please edit the Google Sheet directly instead.'
+    );
+    return false;
+  }
+
+  let pin = sessionStorage.getItem(EDIT_PIN_KEY);
+  if (!pin) {
+    pin = window.prompt('Enter the edit PIN to save this change to the live Sheet:');
+    if (!pin) return false; // user cancelled - don't touch local state either
+  }
+
+  try {
+    const res = await fetch(LIVE_SHEET_WRITE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...payload, pin })
+    });
+    const result = await res.json();
+
+    if (!result.success) {
+      if (/pin/i.test(result.error || '')) {
+        sessionStorage.removeItem(EDIT_PIN_KEY);
+      }
+      window.alert(`Could not save to the Sheet: ${result.error || 'Unknown error'}. This change was NOT saved.`);
+      return false;
+    }
+
+    sessionStorage.setItem(EDIT_PIN_KEY, pin);
+    return true;
+  } catch (err) {
+    window.alert(`Could not reach the Sheet write service: ${err.message}. This change was NOT saved.`);
+    return false;
+  }
+}
 
 // Large-dataset safety net: past this many employees, the Tree view starts fully
 // collapsed except the root and its direct reports, so the first render only has to
@@ -32,11 +86,6 @@ const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1S
 // the original fully-expanded-by-default behavior unchanged.
 const LARGE_DATASET_THRESHOLD = 200;
 const AUTO_EXPAND_DEPTH = 1; // 0 = only the root starts expanded, 1 = root + direct reports
-
-// Preferred display order for known seniority levels in the filter dropdown. A level
-// value from the data that isn't in this map (a custom one the live Sheet introduces)
-// still shows up - see availableLevels below - just sorted after these, alphabetically.
-const LEVEL_RANK = { 'C-Level': 0, 'VP': 1, 'Director': 2, 'Lead': 3, 'Senior': 4, 'Mid': 5 };
 
 function computeDefaultCollapseState(memberList) {
   // The synthetic "Unknown RM" grouping node (see UNASSIGNED_MANAGER_ID / buildOrgTree)
@@ -254,25 +303,18 @@ export default function App() {
     });
   }, [members]);
 
-  const availableLevels = useMemo(() => {
-    const seen = new Set();
-    members.forEach((m) => { if (m.level) seen.add(m.level); });
-    return Array.from(seen).sort((a, b) => {
-      const rankA = LEVEL_RANK[a] ?? 999;
-      const rankB = LEVEL_RANK[b] ?? 999;
-      if (rankA !== rankB) return rankA - rankB;
-      return a.localeCompare(b);
-    });
-  }, [members]);
+  const availableLevels = useMemo(
+    () => getUniqueSortedValues(members, 'level', LEVEL_RANK),
+    [members]
+  );
 
   // Same idea, for the 'entity' column (a newer addition to the live Sheet, alongside
   // department/level). Sorted alphabetically since there's no known preferred order like
   // LEVEL_RANK for seniority levels.
-  const availableEntities = useMemo(() => {
-    const seen = new Set();
-    members.forEach((m) => { if (m.entity) seen.add(m.entity); });
-    return Array.from(seen).sort((a, b) => a.localeCompare(b));
-  }, [members]);
+  const availableEntities = useMemo(
+    () => getUniqueSortedValues(members, 'entity'),
+    [members]
+  );
 
   // Filtered members list
   const filteredMembers = useMemo(() => {
@@ -423,8 +465,14 @@ export default function App() {
     }));
   };
 
-  // Member CRUD Handlers
-  const handleSaveMember = (memberPayload) => {
+  // Member CRUD Handlers. Both write to the live Sheet FIRST (see writeToSheet above) and
+  // only touch local `members` state once that write is confirmed - so the app never shows
+  // an edit as "done" that didn't actually persist anywhere. Returns true/false so the
+  // calling modal/drawer knows whether to close or let the user retry.
+  const handleSaveMember = async (memberPayload) => {
+    const ok = await writeToSheet({ action: 'save', member: memberPayload });
+    if (!ok) return false;
+
     setMembers(prev => {
       const exists = prev.some(m => m.id === memberPayload.id);
       if (exists) {
@@ -436,9 +484,10 @@ export default function App() {
     if (selectedMember && selectedMember.id === memberPayload.id) {
       setSelectedMember(memberPayload);
     }
+    return true;
   };
 
-  const handleDeleteMember = (memberId) => {
+  const handleDeleteMember = async (memberId) => {
     if (!window.confirm('Are you sure you want to remove this employee? Direct reports will be reassigned to their manager.')) {
       return;
     }
@@ -447,6 +496,9 @@ export default function App() {
     if (!target) return;
 
     const managerId = target.managerId;
+
+    const ok = await writeToSheet({ action: 'delete', id: memberId, reassignManagerId: managerId });
+    if (!ok) return;
 
     setMembers(prev => {
       const updated = prev.map(m => {
