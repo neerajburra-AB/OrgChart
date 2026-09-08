@@ -233,6 +233,29 @@ function gridColumnCount(total) {
   return Math.max(2, Math.ceil(Math.sqrt(total)));
 }
 
+// A wrap-grid cell is a flat `minmax(260px, max-content)` track, and that `max-content`
+// sizing is supposed to let a column grow to fit an expanded child's subtree (see the long
+// comment on `.siblings-wrap-grid` in index.css). It doesn't reliably do that when the
+// expanded child's OWN children also exceed WRAP_THRESHOLD and need their own nested
+// wrap-grid: that inner grid sits inside a `flex-direction:column;align-items:center`
+// wrapper with a `margin-left` offset (the "stack-variant" indent), and that combination
+// doesn't propagate its true intrinsic width back up through the outer grid's own
+// max-content track sizing - confirmed live (2026-09-08): a manager with 25 reports whose
+// own report in turn had 23 reports ended up with the outer grid computing a flat 260px
+// column for that cell while the nested sub-grid actually rendered ~1400px wide, centered
+// UNDER that narrow cell and spilling ~500px into neighboring columns. Visually that read
+// as "overlapping cards"; functionally it was worse - `document.elementFromPoint()` on the
+// spilled-over cards returned an unrelated, invisible wrapper div from a totally different
+// branch of the tree that happened to occupy that same screen position, which is why hover
+// (and clicks) on those specific cards silently did nothing while every normal card responded
+// fine. Rather than fight CSS Grid intrinsic sizing through multiple nested formatting
+// contexts, a child that will itself need the wrap-grid treatment is pulled out of the
+// normal per-column flow entirely and spans the full grid row width - it then has all the
+// room it needs without depending on max-content propagating correctly through its parent.
+function needsFullRowWidth(node) {
+  return !!(node.children && node.children.length > WRAP_THRESHOLD && !node.isCollapsed);
+}
+
 // Row-based layout (used by the horizontal children container: waterfall's non-leaf
 // case, and classic/horizontal layout modes).
 function RowChildren({ childNodes, renderChild }) {
@@ -259,7 +282,11 @@ function RowChildren({ childNodes, renderChild }) {
         style={{ gridTemplateColumns: `repeat(${columns}, minmax(260px, max-content))` }}
       >
         {childNodes.map((childNode) => (
-          <div key={childNode.id} className="wrap-sibling-item">
+          <div
+            key={childNode.id}
+            className="wrap-sibling-item"
+            style={needsFullRowWidth(childNode) ? { gridColumn: '1 / -1' } : undefined}
+          >
             {renderChild(childNode)}
           </div>
         ))}
@@ -292,7 +319,11 @@ function StackChildren({ childNodes, renderChild }) {
         style={{ gridTemplateColumns: `repeat(${columns}, minmax(260px, max-content))` }}
       >
         {childNodes.map((childNode) => (
-          <div key={childNode.id} className="wrap-sibling-item">
+          <div
+            key={childNode.id}
+            className="wrap-sibling-item"
+            style={needsFullRowWidth(childNode) ? { gridColumn: '1 / -1' } : undefined}
+          >
             {renderChild(childNode)}
           </div>
         ))}
