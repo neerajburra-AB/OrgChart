@@ -1,0 +1,14 @@
+{
+  // Cloudflare's newer "Workers Builds" system doesn't expose a "Build output directory"
+  // field in the dashboard the way classic Pages projects do - a Worker that serves static
+  // assets reads its output folder from this file instead (the `assets.directory` field
+  // below), which the "Deploy command" (`wrangler deploy`) picks up automatically.
+  // See: https://developers.cloudflare.com/workers/static-assets/
+  "name": "orgchart",
+  "compatibility_date": "2024-01-01",
+  "assets": {
+    // Matches "Build output directory: dist" from the classic-Pages instructions - this is
+    // where `npm run build:cloudflare` (vite build --mode cloudflare) writes its output.
+    "directory": "./dist"
+  }
+}
