@@ -34,7 +34,7 @@ const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1S
 // link can't accept writes), so Add/Edit/Delete go through this separate endpoint instead,
 // which actually edits the Sheet's rows. Leave '' to disable write-back entirely - Add/Edit/
 // Delete will then show an error instead of silently only changing the local browser state.
-const LIVE_SHEET_WRITE_URL = 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE';
+const LIVE_SHEET_WRITE_URL = 'https://script.google.com/macros/s/AKfycbwNaS-w7xNKeXBxQdSfsHoixzfDebgM-NMpymi5QI22MzGbpjk4qU1BgaxQT4LUKQZn8g/exec';
 
 // Posts one save/delete request to the Apps Script Web App above. Sent as text/plain (not
 // application/json) specifically to keep this a CORS "simple request" - a JSON content-type
