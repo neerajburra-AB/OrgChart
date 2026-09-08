@@ -537,6 +537,28 @@ export default function App() {
   // an edit as "done" that didn't actually persist anywhere. Returns true/false so the
   // calling modal/drawer knows whether to close or let the user retry.
   const handleSaveMember = async (memberPayload) => {
+    // Someone just being switched TO Inactive (not already Inactive before this save) -
+    // their direct reports need a real managerId change in the Sheet, same as the
+    // delete flow below does, or those rows would keep pointing at a manager who no
+    // longer shows up anywhere in the app. Computed from `members` (pre-save state), so
+    // this only fires on the actual transition, not on every re-save of an already-
+    // inactive person.
+    const previous = members.find(m => m.id === memberPayload.id);
+    const becomingInactive = isInactiveStatus(memberPayload) && !isInactiveStatus(previous);
+    const reportsToReassign = becomingInactive
+      ? members.filter(m => m.managerId === memberPayload.id)
+      : [];
+
+    if (reportsToReassign.length > 0) {
+      const proceed = window.confirm(
+        `${memberPayload.name} has ${reportsToReassign.length} direct report(s). ` +
+        `Marking them Inactive will reassign those report(s) to ${memberPayload.name}'s ` +
+        `own manager in the Sheet (this managerId change is permanent - it will not ` +
+        `revert automatically if ${memberPayload.name} is made Active again later). Continue?`
+      );
+      if (!proceed) return false;
+    }
+
     const ok = await writeToSheet({ action: 'save', member: memberPayload });
     if (!ok) return false;
 
@@ -551,6 +573,28 @@ export default function App() {
     if (selectedMember && selectedMember.id === memberPayload.id) {
       setSelectedMember(memberPayload);
     }
+
+    // Reassign each direct report's row in the Sheet too - reuses the same 'save'
+    // action per row (no new Apps Script endpoint needed), one at a time so a failure
+    // partway through only leaves the NOT-yet-updated rows on their old (still valid)
+    // manager, instead of the write racing itself. Best-effort: the main status save
+    // above already succeeded and stays saved even if a reassignment here fails.
+    if (reportsToReassign.length > 0) {
+      const newManagerId = memberPayload.managerId ?? null;
+      for (const report of reportsToReassign) {
+        const updatedReport = { ...report, managerId: newManagerId };
+        const reportOk = await writeToSheet({ action: 'save', member: updatedReport });
+        if (reportOk) {
+          setMembers(prev => prev.map(m => (m.id === updatedReport.id ? updatedReport : m)));
+        } else {
+          window.alert(
+            `${memberPayload.name} was saved as Inactive, but reassigning ${report.name} ` +
+            `in the Sheet failed - please update ${report.name}'s manager manually.`
+          );
+        }
+      }
+    }
+
     return true;
   };
 
