@@ -19,9 +19,51 @@
 //      a NEW deployment version (Deploy -> Manage deployments -> pencil icon
 //      -> New version) for the change to actually take effect - saving the
 //      script alone does not update a live deployment.
+//
+// This same /exec URL is now used for READS too (doGet below), not just writes -
+// App.jsx's loadFromAppsScript tries it before ever falling back to the published-CSV
+// link. Reason: File > Share > Publish to web regenerates its CSV snapshot on GOOGLE'S
+// OWN schedule, independent of when a cell actually changes - a save here could be
+// visible instantly in the Sheet itself while everyone's page, on refresh, still fetches
+// the old pre-edit snapshot from that CSV link for several minutes or more. doGet has no
+// such delay: it's a live SpreadsheetApp read executed fresh on every request.
 // ============================================================================
 
 const EDIT_PIN = '4321'; // CHANGE THIS before deploying
+
+// Returns every row of the target sheet as JSON, read live (no caching layer of any
+// kind sits between this and the actual cell values - unlike the published-CSV link,
+// which lags real edits by however long Google takes to regenerate that snapshot).
+// getDisplayValues() (not getValues()) so a date- or number-formatted cell comes
+// through as the same plain string a human sees in the Sheet, matching exactly what
+// the CSV export used to hand App.jsx's parseSheetRow - a raw Date/number value from
+// getValues() would reach the app as something like a JS Date's toString() output
+// instead of "2020-01-15", silently breaking anything that displays or sorts by it.
+function doGet(e) {
+  try {
+    const sheet = getTargetSheet();
+    if (!sheet) {
+      return jsonResponse({ success: false, error: 'Could not find the target sheet tab' });
+    }
+
+    const data = sheet.getDataRange().getDisplayValues();
+    if (data.length === 0) {
+      return jsonResponse({ success: true, members: [] });
+    }
+
+    const headers = data[0].map((h) => String(h).trim());
+    const members = [];
+    for (let r = 1; r < data.length; r++) {
+      const member = {};
+      headers.forEach((h, i) => { member[h] = data[r][i]; });
+      members.push(member);
+    }
+
+    return jsonResponse({ success: true, members: members });
+  } catch (err) {
+    return jsonResponse({ success: false, error: String(err) });
+  }
+}
 
 function doPost(e) {
   const lock = LockService.getScriptLock();

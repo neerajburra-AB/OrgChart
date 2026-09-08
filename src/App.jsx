@@ -24,16 +24,25 @@ const STORAGE_KEY = 'orgpulse_members_data';
 const THEME_KEY = 'orgpulse_theme';
 const EDIT_PIN_KEY = 'orgpulse_edit_pin';
 
-// Live data source: a Google Sheet published as CSV (File > Share > Publish to web > CSV).
-// Update the URL below whenever you republish a new Sheet. Leave it as '' to skip straight
-// to the bundled public/data/members.json file below.
+// Fallback read source ONLY: a Google Sheet published as CSV (File > Share > Publish to
+// web > CSV). This is deliberately no longer the primary read path - Google regenerates
+// a "publish to web" snapshot on its OWN schedule, independent of when a cell actually
+// changes, and that lag has been observed to run several minutes (sometimes longer):
+// a write-back could succeed (visible instantly in the Sheet itself) while everyone
+// else's page, on refresh, still fetches the old pre-edit snapshot from this URL. See
+// loadLiveSheetMembers below - LIVE_SHEET_WRITE_URL's doGet is tried first for exactly
+// that reason. This CSV URL only matters as a fallback if that Apps Script endpoint is
+// ever unset or unreachable. Update it whenever you republish a new Sheet; leave it as
+// '' to skip straight to the bundled public/data/members.json file below.
 const LIVE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1SA7KNxIUxZ5ed7KbaPSS7xva6O541RtMuwoTWPlQ-k6fsBzHeMq0VCWp9wUkKP9dq1y8-MzpgfJW/pub?gid=0&single=true&output=csv';
 
-// Write-back target: a Google Apps Script Web App bound to the same Sheet (see
-// apps-script/Code.gs in the repo). LIVE_SHEET_CSV_URL above is read-only (a published-CSV
-// link can't accept writes), so Add/Edit/Delete go through this separate endpoint instead,
-// which actually edits the Sheet's rows. Leave '' to disable write-back entirely - Add/Edit/
-// Delete will then show an error instead of silently only changing the local browser state.
+// Primary read+write target: a Google Apps Script Web App bound to the same Sheet (see
+// apps-script/Code.gs in the repo) - doGet returns the live sheet rows (a plain
+// SpreadsheetApp read executed fresh on every request, so a save shows up on the very
+// next load, with none of the "publish to web" caching lag LIVE_SHEET_CSV_URL has), and
+// doPost is how Add/Edit/Delete actually write to the Sheet's rows. Leave '' to disable
+// write-back entirely - Add/Edit/Delete will then show an error instead of silently only
+// changing the local browser state, and reads fall back to the CSV URL above.
 const LIVE_SHEET_WRITE_URL = 'https://script.google.com/macros/s/AKfycbwNaS-w7xNKeXBxQdSfsHoixzfDebgM-NMpymi5QI22MzGbpjk4qU1BgaxQT4LUKQZn8g/exec';
 
 // Posts one save/delete request to the Apps Script Web App above. Sent as text/plain (not
@@ -167,12 +176,41 @@ export default function App() {
     level: row.level ?? ''
   });
 
-  // Try loading members from the live published Google Sheet CSV.
-  // Returns the parsed member array, or null if the sheet couldn't be loaded/parsed.
-  const loadLiveSheetMembers = async () => {
+  // Try the Apps Script endpoint's doGet first - it reads the Sheet live on every
+  // request (no publish-to-web regeneration delay), so a save is visible on the very
+  // next load. `cache: 'no-store'` plus a cache-busting query param make sure this is
+  // never served from the browser's own HTTP cache either - without both, a hard
+  // refresh could still show a save from moments ago as stale.
+  // Returns the parsed member array, or null if it couldn't be loaded/parsed.
+  const loadFromAppsScript = async () => {
+    if (!LIVE_SHEET_WRITE_URL || LIVE_SHEET_WRITE_URL === 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE') {
+      return null;
+    }
+    try {
+      const res = await fetch(`${LIVE_SHEET_WRITE_URL}?t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+
+      const result = await res.json();
+      if (!result.success || !Array.isArray(result.members)) {
+        throw new Error(result.error || 'Unexpected response shape');
+      }
+
+      const parsed = result.members.map(parseSheetRow).filter((m) => m.id);
+      return parsed.length > 0 ? parsed : null;
+    } catch (err) {
+      console.warn('Apps Script live read failed, falling back to published CSV:', err);
+      return null;
+    }
+  };
+
+  // Fallback: the published-CSV snapshot (see LIVE_SHEET_CSV_URL above for why this
+  // isn't tried first). Same cache-busting treatment, in case Google's own snapshot
+  // caching is what's stale rather than just this app's own HTTP cache.
+  const loadFromPublishedCsv = async () => {
     if (!LIVE_SHEET_CSV_URL) return null;
     try {
-      const res = await fetch(LIVE_SHEET_CSV_URL);
+      const separator = LIVE_SHEET_CSV_URL.includes('?') ? '&' : '?';
+      const res = await fetch(`${LIVE_SHEET_CSV_URL}${separator}t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
 
       const csvText = await res.text();
@@ -183,9 +221,15 @@ export default function App() {
 
       return parsed.length > 0 ? parsed : null;
     } catch (err) {
-      console.warn('Live Google Sheet load failed, falling back to bundled JSON:', err);
+      console.warn('Published CSV load failed, falling back to bundled JSON:', err);
       return null;
     }
+  };
+
+  const loadLiveSheetMembers = async () => {
+    const fromAppsScript = await loadFromAppsScript();
+    if (fromAppsScript) return fromAppsScript;
+    return loadFromPublishedCsv();
   };
 
   // Safe Data Engine: try the live Google Sheet CSV first (so day-to-day data edits show up
