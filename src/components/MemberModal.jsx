@@ -215,6 +215,25 @@ export default function MemberModal({
                   ))}
                 </datalist>
               </div>
+
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <select
+                  className="form-control"
+                  value={formData.status || 'active'}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  {/* 'Inactive' is what hides this person from the Tree and Directory by
+                      default (see showInactive in App.jsx) - a manager marked Inactive
+                      doesn't remove their active reports, they're re-pointed up to the
+                      next active manager automatically. The other values only affect the
+                      status dot shown on their card. */}
+                  <option value="active">Active</option>
+                  <option value="on-leave">On Leave</option>
+                  <option value="hiring">Hiring</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
             </div>
 
             <div className="form-group">

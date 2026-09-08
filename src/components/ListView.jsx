@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Eye, Edit3, Trash2, ArrowUpDown } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
+import { isInactiveStatus } from '../utils/orgUtils';
 
 export default function ListView({
   members,
@@ -110,7 +111,29 @@ export default function ListView({
                         style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }}
                       />
                       <div>
-                        <div style={{ fontWeight: 700 }}>{member.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 700 }}>{member.name}</span>
+                          {/* Only ever visible when Show Inactive is on (App.jsx filters
+                              inactive rows out of this list otherwise), but the row itself
+                              gives no other clue - the "Actions" avatar/status dot lives
+                              only on the Tree cards, not here. */}
+                          {isInactiveStatus(member) && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: '2px 7px',
+                                borderRadius: 10,
+                                background: 'rgba(107, 114, 128, 0.18)',
+                                color: 'var(--status-inactive)',
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.3
+                              }}
+                            >
+                              Inactive
+                            </span>
+                          )}
+                        </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{member.email}</div>
                       </div>
                     </div>

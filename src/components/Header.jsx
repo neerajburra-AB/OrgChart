@@ -1,30 +1,35 @@
 import React from 'react';
-import { 
-  Network, 
-  Search, 
-  X, 
-  GitFork, 
-  List, 
-  BarChart3, 
-  Plus, 
-  Sun, 
-  Moon, 
-  Download
+import {
+  Network,
+  Search,
+  X,
+  GitFork,
+  List,
+  BarChart3,
+  Plus,
+  Sun,
+  Moon,
+  Download,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import SearchAutocomplete from './SearchAutocomplete';
 
-export default function Header({ 
-  search, 
-  setSearch, 
-  activeView, 
-  setActiveView, 
-  theme, 
-  setTheme, 
-  onOpenAddModal, 
+export default function Header({
+  search,
+  setSearch,
+  activeView,
+  setActiveView,
+  theme,
+  setTheme,
+  onOpenAddModal,
   onOpenImportExport,
   totalMembers,
   allMembers = [],
-  onSelectSearchResult
+  onSelectSearchResult,
+  showInactive,
+  setShowInactive,
+  inactiveCount = 0
 }) {
   return (
     <header className="app-header">
@@ -77,7 +82,24 @@ export default function Header({
 
       {/* Right Header Actions */}
       <div className="header-actions">
-        <button 
+        {/* Applies to both Tree and Directory (unlike ControlsBar, which only renders for
+            the Tree view) - inactive members (status === 'inactive') are hidden from both
+            by default; toggling this reveals them everywhere so they can be found and
+            edited (e.g. reactivated) again. See reparentAroundInactive in orgUtils.js for
+            how the Tree stays connected while a manager is hidden this way. */}
+        <button
+          className="btn btn-secondary"
+          onClick={() => setShowInactive(!showInactive)}
+          title={showInactive ? 'Hide inactive employees' : 'Show inactive employees'}
+        >
+          {showInactive ? <Eye size={15} /> : <EyeOff size={15} />}
+          <span>{showInactive ? 'Hide Inactive' : 'Show Inactive'}</span>
+          {!showInactive && inactiveCount > 0 && (
+            <span className="brand-badge" style={{ marginLeft: 2 }}>{inactiveCount}</span>
+          )}
+        </button>
+
+        <button
           className="btn btn-secondary"
           onClick={onOpenImportExport}
           title="Import / Export Org Chart"

@@ -15,6 +15,8 @@ import {
   filterMembers,
   getAncestorIds,
   getUniqueSortedValues,
+  isInactiveStatus,
+  reparentAroundInactive,
   LEVEL_RANK,
   UNASSIGNED_MANAGER_ID
 } from './utils/orgUtils';
@@ -302,6 +304,10 @@ export default function App() {
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
   const [entityFilter, setEntityFilter] = useState('all');
+  // Off by default: inactive employees (status === 'inactive') are hidden from both the
+  // tree and the directory list until explicitly revealed - see reparentAroundInactive
+  // in orgUtils.js for how the tree stays connected when a manager is hidden this way.
+  const [showInactive, setShowInactive] = useState(false);
 
   // Focused Node State (for Auto-Focus Camera Centering & Pulsing Glow)
   const [focusedNodeId, setFocusedNodeId] = useState(null);
@@ -360,20 +366,37 @@ export default function App() {
     [members]
   );
 
-  // Filtered members list
+  // Filtered members list. showInactive gates this the same way it gates the tree below -
+  // an inactive person shouldn't reappear in the directory (List view) just because they
+  // happen to match the current search/department/level/entity filters.
   const filteredMembers = useMemo(() => {
-    return filterMembers(members, {
+    const matches = filterMembers(members, {
       search,
       department: departmentFilter,
       level: levelFilter,
       entity: entityFilter
     });
-  }, [members, search, departmentFilter, levelFilter, entityFilter]);
+    return showInactive ? matches : matches.filter((m) => !isInactiveStatus(m));
+  }, [members, search, departmentFilter, levelFilter, entityFilter, showInactive]);
+
+  const inactiveCount = useMemo(
+    () => members.filter(isInactiveStatus).length,
+    [members]
+  );
+
+  // What the Tree view is actually built from. With showInactive off (the default),
+  // inactive members are removed and anyone who reported to one is re-pointed to the
+  // nearest non-inactive manager above them - see reparentAroundInactive - so hiding a
+  // manager never orphans their still-visible reports or dumps them in the "Unknown RM"
+  // bucket. Toggling showInactive on restores the full, unmodified member list.
+  const membersForTree = useMemo(() => {
+    return showInactive ? members : reparentAroundInactive(members);
+  }, [members, showInactive]);
 
   // Build tree data recursively using buildOrgTree
   const { root: treeRoot, memberMap } = useMemo(() => {
-    return buildOrgTree(members, collapseState);
-  }, [members, collapseState]);
+    return buildOrgTree(membersForTree, collapseState);
+  }, [membersForTree, collapseState]);
 
   // Search Match IDs. Pure computation, no state updates inside it.
   const searchMatches = useMemo(() => {
@@ -579,6 +602,9 @@ export default function App() {
         totalMembers={members.length}
         allMembers={members}
         onSelectSearchResult={handleSelectSearchResult}
+        showInactive={showInactive}
+        setShowInactive={setShowInactive}
+        inactiveCount={inactiveCount}
         onOpenAddModal={() => setModalState({ isOpen: true, mode: 'add', initialData: null, presetManagerId: null })}
         onOpenImportExport={() => setImportExportModalOpen(true)}
       />

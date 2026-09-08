@@ -23,6 +23,7 @@
   --status-active: #10b981;
   --status-leave: #f59e0b;
   --status-hiring: #ec4899;
+  --status-inactive: #6b7280;
 
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -793,6 +794,7 @@ body {
 .status-dot.active { background: var(--status-active); }
 .status-dot.on-leave { background: var(--status-leave); }
 .status-dot.hiring { background: var(--status-hiring); }
+.status-dot.inactive { background: var(--status-inactive); }
 
 .node-main-info {
   flex: 1;

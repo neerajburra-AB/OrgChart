@@ -152,6 +152,56 @@ export function buildOrgTree(members, collapseState = {}) {
 }
 
 /**
+ * A member counts as "inactive" only when their status is exactly 'inactive' - someone
+ * 'on-leave' or 'hiring' (or any other status value) still counts as visible. Case-
+ * insensitive so a live-Sheet cell typed as "Inactive" still matches.
+ */
+export function isInactiveStatus(member) {
+  return String(member?.status || '').trim().toLowerCase() === 'inactive';
+}
+
+/**
+ * Returns a new members array with every inactive member removed, while keeping the
+ * org hierarchy connected: anyone (active, on-leave, hiring, etc.) who reported -
+ * directly or through a chain of managers - to an inactive person gets re-pointed to
+ * the nearest non-inactive manager above that chain (skip-level), instead of vanishing
+ * from the tree or being dumped in the "Unknown RM" bucket just because their manager
+ * was marked inactive. A managerId that doesn't resolve to any real member at all (the
+ * pre-existing bad-data case, unrelated to status) is left exactly as-is - buildOrgTree's
+ * own orphan grouping already handles that separately, and re-pointing here would erase
+ * the very manager-id it needs to flag as broken.
+ *
+ * Does not mutate `members` - callers that need the untouched raw list (e.g. the
+ * Manager picker, which should still be able to find everyone) keep using it directly.
+ */
+export function reparentAroundInactive(members) {
+  const byId = new Map(members.map((m) => [m.id, m]));
+
+  function resolveVisibleManagerId(member) {
+    let currentId = member.managerId;
+    // Same cycle guard pattern as isDescendant/getAncestorIds above - a circular
+    // managerId chain must not walk forever.
+    const visited = new Set([member.id]);
+    while (currentId) {
+      if (visited.has(currentId)) return null;
+      visited.add(currentId);
+      const manager = byId.get(currentId);
+      if (!manager) return currentId; // unresolved id - preserve existing orphan behavior
+      if (!isInactiveStatus(manager)) return manager.id;
+      currentId = manager.managerId;
+    }
+    return null; // walked all the way to the top without finding a non-inactive manager
+  }
+
+  return members
+    .filter((m) => !isInactiveStatus(m))
+    .map((m) => {
+      const resolvedManagerId = resolveVisibleManagerId(m);
+      return resolvedManagerId === m.managerId ? m : { ...m, managerId: resolvedManagerId };
+    });
+}
+
+/**
  * Checks if targetId is an ancestor of proposedManagerId (prevents circular hierarchy)
  */
 export function isDescendant(members, targetId, proposedManagerId) {
