@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, Edit3, Sparkles } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 import { isDescendant, getUniqueSortedValues, LEVEL_RANK } from '../utils/orgUtils';
+import ManagerPicker from './ManagerPicker';
 
 export default function MemberModal({
   isOpen,
@@ -218,18 +219,11 @@ export default function MemberModal({
 
             <div className="form-group">
               <label className="form-label">Reports To (Manager)</label>
-              <select
-                className="form-control"
-                value={formData.managerId || ''}
-                onChange={(e) => setFormData({ ...formData, managerId: e.target.value || null })}
-              >
-                <option value="">None (Top-Level Executive)</option>
-                {validManagers.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.title} - {m.department})
-                  </option>
-                ))}
-              </select>
+              <ManagerPicker
+                members={validManagers}
+                value={formData.managerId}
+                onChange={(managerId) => setFormData({ ...formData, managerId })}
+              />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
