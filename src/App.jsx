@@ -92,13 +92,19 @@ async function writeToSheet(payload) {
   }
 }
 
-// Large-dataset safety net: past this many employees, the Tree view starts fully
-// collapsed except the root and its direct reports, so the first render only has to
-// draw a handful of cards instead of the entire company. Small/medium datasets keep
-// the original fully-expanded-by-default behavior unchanged.
+// Used by handleExpandAll below to warn before rendering every single card on a large
+// org at once (that part of the safety net is still size-gated - it's genuinely just
+// about render cost). Default collapse-on-load, right below, is NOT size-gated: it
+// always starts at root + direct reports expanded, everything deeper collapsed,
+// regardless of company size - see computeDefaultCollapseState.
 const LARGE_DATASET_THRESHOLD = 200;
 const AUTO_EXPAND_DEPTH = 1; // 0 = only the root starts expanded, 1 = root + direct reports
 
+// Always starts the Tree at root + direct reports (AUTO_EXPAND_DEPTH) expanded and
+// everything deeper collapsed - previously this only kicked in past
+// LARGE_DATASET_THRESHOLD employees, so any smaller org loaded with EVERY node
+// expanded regardless of depth, which is what the depth-1 default is supposed to
+// prevent in the first place.
 function computeDefaultCollapseState(memberList) {
   // The synthetic "Unknown RM" grouping node (see UNASSIGNED_MANAGER_ID / buildOrgTree)
   // holds data-quality problem rows, not real top-level structure, so it always starts
@@ -106,7 +112,7 @@ function computeDefaultCollapseState(memberList) {
   // first render, before any user has touched the collapse toggle.
   const baseCollapse = { [UNASSIGNED_MANAGER_ID]: true };
 
-  if (!memberList || memberList.length <= LARGE_DATASET_THRESHOLD) {
+  if (!memberList || memberList.length === 0) {
     return baseCollapse;
   }
 

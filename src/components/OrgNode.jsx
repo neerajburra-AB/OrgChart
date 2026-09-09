@@ -97,6 +97,21 @@ export default function OrgNode({
         style={{ background: deptInfo.color }}
       />
 
+      {/* Employee ID, top-right corner - on its OWN row above node-header, not sharing
+          the name's row. Two earlier attempts both cost the name width: absolutely
+          positioned, it floated over the name text in Compact mode; as a flex sibling
+          of node-main-info in the same row as the avatar, it shrank node-main-info's
+          available width and made long names ellipsize much sooner ("Rajesh Bal...").
+          A dedicated row above costs a little vertical space instead of horizontal
+          space, so the name/title below get the card's FULL width again, unchanged
+          from before this badge existed. title carries the full id in case it's longer
+          than the badge's own max-width. */}
+      <div className="node-id-row">
+        <div className="node-id-badge" title={`Employee ID: ${node.id}`}>
+          {node.id}
+        </div>
+      </div>
+
       <div className="node-header">
         <div className="avatar-wrapper">
           {hasPhoto ? (
@@ -132,18 +147,6 @@ export default function OrgNode({
           >
             {deptInfo.name}
           </span>
-        </div>
-
-        {/* Employee ID, top-right corner. A flex sibling of node-main-info (not
-            absolutely positioned) so it actually reserves its own width - node-main-info's
-            flex:1 + min-width:0 (see .node-main-info/.node-name in index.css) then shrinks
-            and ellipsizes the name/title around it automatically, in both card modes and
-            for any length of name or live-Sheet id, instead of floating on top of text
-            that happens to reach that corner (which is what an absolutely-positioned
-            badge here overlapped in Compact mode). title carries the full id in case it's
-            longer than the badge's own max-width. */}
-        <div className="node-id-badge" title={`Employee ID: ${node.id}`}>
-          {node.id}
         </div>
       </div>
 
