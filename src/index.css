@@ -748,6 +748,30 @@ body {
   border-radius: var(--radius-full);
 }
 
+/* Employee ID badge, top-right corner of the card. A flex sibling inside
+   .node-header (not absolutely positioned) - flex-shrink:0 + align-self:flex-start
+   keeps it pinned to the top-right of the row at its own natural size, while
+   node-main-info's flex:1/min-width:0 shrinks and ellipsizes the name/title around
+   it instead of the badge floating over whatever text reaches that corner. max-width
+   + ellipsis still caps a long live-Sheet id instead of stretching the card; hover/
+   title shows the full value (see OrgNode.jsx). */
+.node-id-badge {
+  flex-shrink: 0;
+  align-self: flex-start;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: var(--glass-border);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+
 /* Node Internal Layout */
 .node-header {
   display: flex;

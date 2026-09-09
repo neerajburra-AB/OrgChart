@@ -133,6 +133,18 @@ export default function OrgNode({
             {deptInfo.name}
           </span>
         </div>
+
+        {/* Employee ID, top-right corner. A flex sibling of node-main-info (not
+            absolutely positioned) so it actually reserves its own width - node-main-info's
+            flex:1 + min-width:0 (see .node-main-info/.node-name in index.css) then shrinks
+            and ellipsizes the name/title around it automatically, in both card modes and
+            for any length of name or live-Sheet id, instead of floating on top of text
+            that happens to reach that corner (which is what an absolutely-positioned
+            badge here overlapped in Compact mode). title carries the full id in case it's
+            longer than the badge's own max-width. */}
+        <div className="node-id-badge" title={`Employee ID: ${node.id}`}>
+          {node.id}
+        </div>
       </div>
 
       {!isCompact && (
