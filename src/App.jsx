@@ -17,6 +17,7 @@ import {
   getUniqueSortedValues,
   isInactiveStatus,
   reparentAroundInactive,
+  resolveSkipLevelManagerId,
   LEVEL_RANK,
   UNASSIGNED_MANAGER_ID
 } from './utils/orgUtils';
@@ -549,12 +550,26 @@ export default function App() {
       ? members.filter(m => m.managerId === memberPayload.id)
       : [];
 
+    // The reassignment target - walked past any OTHER already-inactive manager above
+    // memberPayload too (not just memberPayload's own managerId), so two inactive
+    // managers in a row still land reports on a real, visible manager instead of one
+    // more inactive hop that Directory/Analytics would immediately need to skip again.
+    const skipLevelManagerId = reportsToReassign.length > 0
+      ? resolveSkipLevelManagerId(
+          members.map(m => (m.id === memberPayload.id ? memberPayload : m)),
+          memberPayload.id
+        )
+      : null;
+
     if (reportsToReassign.length > 0) {
+      const targetName = skipLevelManagerId
+        ? (members.find(m => m.id === skipLevelManagerId)?.name || skipLevelManagerId)
+        : 'no manager (top level)';
       const proceed = window.confirm(
         `${memberPayload.name} has ${reportsToReassign.length} direct report(s). ` +
-        `Marking them Inactive will reassign those report(s) to ${memberPayload.name}'s ` +
-        `own manager in the Sheet (this managerId change is permanent - it will not ` +
-        `revert automatically if ${memberPayload.name} is made Active again later). Continue?`
+        `Marking them Inactive will reassign those report(s) to ${targetName} in the ` +
+        `Sheet (this managerId change is permanent - it will not revert automatically ` +
+        `if ${memberPayload.name} is made Active again later). Continue?`
       );
       if (!proceed) return false;
     }
@@ -580,9 +595,8 @@ export default function App() {
     // manager, instead of the write racing itself. Best-effort: the main status save
     // above already succeeded and stays saved even if a reassignment here fails.
     if (reportsToReassign.length > 0) {
-      const newManagerId = memberPayload.managerId ?? null;
       for (const report of reportsToReassign) {
-        const updatedReport = { ...report, managerId: newManagerId };
+        const updatedReport = { ...report, managerId: skipLevelManagerId };
         const reportOk = await writeToSheet({ action: 'save', member: updatedReport });
         if (reportOk) {
           setMembers(prev => prev.map(m => (m.id === updatedReport.id ? updatedReport : m)));

@@ -174,31 +174,51 @@ export function isInactiveStatus(member) {
  * Does not mutate `members` - callers that need the untouched raw list (e.g. the
  * Manager picker, which should still be able to find everyone) keep using it directly.
  */
+// Shared by reparentAroundInactive (below) and resolveSkipLevelManagerId - walks a
+// managerId chain starting at `startManagerId`, skipping past any inactive manager,
+// and returns the first non-inactive one it finds. `selfId` is only used for the cycle
+// guard (a chain must never walk back through the member it started from).
+function walkToVisibleManagerId(byId, selfId, startManagerId) {
+  let currentId = startManagerId;
+  // Same cycle guard pattern as isDescendant/getAncestorIds above - a circular
+  // managerId chain must not walk forever.
+  const visited = new Set([selfId]);
+  while (currentId) {
+    if (visited.has(currentId)) return null;
+    visited.add(currentId);
+    const manager = byId.get(currentId);
+    if (!manager) return currentId; // unresolved id - preserve existing orphan behavior
+    if (!isInactiveStatus(manager)) return manager.id;
+    currentId = manager.managerId;
+  }
+  return null; // walked all the way to the top without finding a non-inactive manager
+}
+
 export function reparentAroundInactive(members) {
   const byId = new Map(members.map((m) => [m.id, m]));
-
-  function resolveVisibleManagerId(member) {
-    let currentId = member.managerId;
-    // Same cycle guard pattern as isDescendant/getAncestorIds above - a circular
-    // managerId chain must not walk forever.
-    const visited = new Set([member.id]);
-    while (currentId) {
-      if (visited.has(currentId)) return null;
-      visited.add(currentId);
-      const manager = byId.get(currentId);
-      if (!manager) return currentId; // unresolved id - preserve existing orphan behavior
-      if (!isInactiveStatus(manager)) return manager.id;
-      currentId = manager.managerId;
-    }
-    return null; // walked all the way to the top without finding a non-inactive manager
-  }
 
   return members
     .filter((m) => !isInactiveStatus(m))
     .map((m) => {
-      const resolvedManagerId = resolveVisibleManagerId(m);
+      const resolvedManagerId = walkToVisibleManagerId(byId, m.id, m.managerId);
       return resolvedManagerId === m.managerId ? m : { ...m, managerId: resolvedManagerId };
     });
+}
+
+/**
+ * For ONE member who is (about to become) inactive, finds the nearest non-inactive
+ * manager above them - i.e. what their direct reports should be re-pointed to so the
+ * hierarchy stays connected once this member is hidden. Used when a Sheet write needs
+ * to actually persist a reassignment (see handleSaveMember in App.jsx) - reuses the
+ * exact same walk as reparentAroundInactive so the Tree's computed view and a real
+ * Sheet mutation never disagree about where a report lands, even when several managers
+ * in a row are inactive.
+ */
+export function resolveSkipLevelManagerId(members, memberId) {
+  const member = members.find((m) => m.id === memberId);
+  if (!member) return null;
+  const byId = new Map(members.map((m) => [m.id, m]));
+  return walkToVisibleManagerId(byId, memberId, member.managerId);
 }
 
 /**
