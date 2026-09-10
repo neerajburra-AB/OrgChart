@@ -8,12 +8,14 @@ import {
   ZoomOut,
   Maximize2,
   SlidersHorizontal,
-  FileDown
+  FileDown,
+  FileType
 } from 'lucide-react';
 import ManagerPicker from './ManagerPicker';
 import OrgCanvas from './OrgCanvas';
 import { buildFocusTree, computeCollapseStateFromRoot } from '../utils/orgUtils';
 import { exportOrgChartToPpt } from '../utils/exportPpt';
+import { downloadSmartArtOutline, SMARTART_PRACTICAL_LIMIT } from '../utils/exportSmartArtOutline';
 
 // Same depth-1 default (root + direct reports expanded, everything deeper collapsed)
 // as the main Tree - see computeCollapseStateFromRoot in orgUtils.js.
@@ -80,6 +82,29 @@ export default function FocusView({ members, displayField, hideNames, cardMode, 
     } finally {
       setIsExporting(false);
     }
+  };
+
+  // The OTHER hierarchy option - a paste-able outline for PowerPoint's OWN
+  // SmartArt (see exportSmartArtOutline.js for why that can't just be generated
+  // directly). SmartArt itself gets unreadable well before real org sizes, so
+  // this warns rather than silently producing something that will look broken
+  // the moment it's pasted in - but still lets the user proceed if they want to.
+  const handleDownloadSmartArt = () => {
+    if (!treeRoot) return;
+    const count = treeRoot.totalSubtreeCount + 1;
+    if (count > SMARTART_PRACTICAL_LIMIT) {
+      const proceed = window.confirm(
+        `${treeRoot.name}'s team is ${count} people. PowerPoint's own SmartArt Hierarchy ` +
+        `gets cramped and hard to read well before that size (roughly ${SMARTART_PRACTICAL_LIMIT}) - ` +
+        `there's no auto-pagination like the PPT export above. Download the outline anyway?`
+      );
+      if (!proceed) return;
+    }
+    downloadSmartArtOutline(treeRoot, {
+      displayField,
+      hideNames,
+      fileName: `org-chart-${treeRoot.name.replace(/\s+/g, '-').toLowerCase()}-smartart-outline.txt`
+    });
   };
 
   if (!focusRootId) {
@@ -155,6 +180,15 @@ export default function FocusView({ members, displayField, hideNames, cardMode, 
           </button>
 
           <div style={{ height: 16, width: 1, background: 'var(--border-subtle)' }} />
+
+          <button
+            className="btn btn-secondary"
+            onClick={handleDownloadSmartArt}
+            title={`Paste into PowerPoint's Insert > SmartArt > Hierarchy Text Pane for a real native SmartArt diagram (best under ~${SMARTART_PRACTICAL_LIMIT} people)`}
+          >
+            <FileType size={14} />
+            <span>SmartArt Outline (.txt)</span>
+          </button>
 
           <button className="btn btn-primary" onClick={handleExportPpt} disabled={isExporting}>
             <FileDown size={14} />

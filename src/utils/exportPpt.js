@@ -1,24 +1,33 @@
 // ============================================================================
-// PPT export - native, editable PowerPoint shapes (rectangles + connector lines),
-// NOT a screenshot of the on-screen tree.
+// PPT export - native, editable PowerPoint shapes (rectangles + connector lines)
+// styled like a traditional org-chart / SmartArt Hierarchy diagram, NOT a
+// screenshot of the on-screen tree.
 //
 // Why not a screenshot: this project already tried a screenshot-based Export
 // PNG/PDF (html2canvas) once - see the "Remove non-functional Export PNG/PDF"
 // commit - and it was pulled out for being unreliable. Re-attempting the same
 // approach for PPT would risk the same failure mode, plus a screenshot dropped
-// onto a slide isn't editable in PowerPoint afterwards anyway. Building the boxes
-// directly in PPT coordinates via pptxgenjs sidesteps both problems: it's
-// independent of whatever CSS/DOM layout the on-screen tree happens to be using,
-// and every box lands as a real, separately-editable PowerPoint shape.
+// onto a slide isn't editable in PowerPoint afterwards anyway.
+//
+// Why not actual SmartArt: PowerPoint's SmartArt is rendered by an internal
+// engine with its own proprietary diagram-data XML - no library (this one,
+// python-pptx, anything) can generate a real SmartArt object from scratch.
+// What IS achievable, and what this file does, is drawing plain shapes styled
+// to LOOK like the classic Hierarchy SmartArt: uniform boxes, right-angle
+// ("elbow") trunk/bus/drop connectors instead of diagonal lines - while
+// staying fully editable, unlike a screenshot, and able to auto-paginate
+// across slides, unlike SmartArt (which has no such thing and gets unreadable
+// past ~30-40 shapes in one diagram). See exportSmartArtOutline.js for the
+// other option: a paste-able outline that produces REAL SmartArt inside
+// PowerPoint itself, for subtrees small enough for that to stay readable.
 //
 // Why cascading (one slide per manager), not one giant slide: a subtree from a
 // senior leader down to individual contributors can be hundreds or thousands of
-// people - no single slide can show that legibly. Instead this generates ONE
-// slide per person who has direct reports, showing just that person + their
-// direct reports (standard "cascading org chart deck" pattern) - a slide never
-// has more boxes than one manager's own span of control, however big the whole
-// subtree is, and PowerPoint's own slide navigator effectively becomes the
-// drill-down UI.
+// people - no single slide/diagram can show that legibly. Instead this generates
+// ONE slide per person who has direct reports, showing just that person + one
+// row of their direct reports (standard "cascading org chart deck" pattern) -
+// a slide never has more boxes than fit in one clean row, however big the whole
+// subtree is, and PowerPoint's own slide navigator becomes the drill-down UI.
 // ============================================================================
 
 import pptxgenjs from 'pptxgenjs';
@@ -27,19 +36,22 @@ import { getDisplayLabels } from './orgUtils';
 const SLIDE_WIDTH_IN = 13.33;
 const SLIDE_HEIGHT_IN = 7.5;
 
-const BOX_W = 2.35;
-const BOX_H = 0.9;
-const COL_GAP = 0.35;
-const ROW_GAP = 0.75;
-const HEADER_Y = 0.55;
-const FIRST_CHILD_ROW_Y = 2.4;
-const MAX_COLS_PER_ROW = 5; // keeps boxes readable at this slide width/box size
-const MAX_ROWS_PER_SLIDE = 3; // beyond this, split into "(2 of N)" continuation slides
+const BOX_W = 1.9;
+const BOX_H = 0.85;
+const COL_GAP = 0.3;
+const HEADER_Y = 0.7;
+const CHILD_ROW_Y = 3.6;
+const BUS_Y = HEADER_Y + BOX_H + 0.55; // horizontal "bus" line between header and children
+const MAX_COLS_PER_ROW = 6; // one clean row per slide - keeps the classic look instead of a busy multi-row grid
 
-const HEADER_FILL = '4F46E5';
-const CHILD_FILL = 'FFFFFF';
-const CHILD_LINE = 'C7C9D9';
-const LINE_COLOR = '9CA3AF';
+// One uniform box style for every level (header included) - deliberately NOT a
+// different color per depth. A traditional org-chart/SmartArt Hierarchy diagram
+// reads its levels from POSITION and the connector lines, not from re-coloring
+// every generation - that's what keeps a 5-level cascade visually consistent
+// slide to slide instead of introducing an arbitrary color ramp.
+const BOX_FILL = 'FFFFFF';
+const BOX_LINE = '4F46E5';
+const LINE_COLOR = '8B90A8';
 const TITLE_COLOR = '1F2937';
 const MUTED_COLOR = '6B7280';
 
@@ -54,44 +66,69 @@ function drawBox(slide, node, x, y, opts, { isHeader = false } = {}) {
 
   slide.addShape('roundRect', {
     x, y, w: BOX_W, h: BOX_H,
-    rectRadius: 0.06,
-    fill: { color: isHeader ? HEADER_FILL : CHILD_FILL },
-    line: { color: isHeader ? HEADER_FILL : CHILD_LINE, width: 1 }
+    rectRadius: 0.05,
+    fill: { color: BOX_FILL },
+    line: { color: BOX_LINE, width: isHeader ? 1.75 : 1 }
   });
 
   slide.addText(
     [
-      { text: primary, options: { bold: true, fontSize: isHeader ? 13 : 11.5, color: isHeader ? 'FFFFFF' : TITLE_COLOR, breakLine: true } },
-      ...(secondary ? [{ text: secondary, options: { fontSize: 9.5, color: isHeader ? 'E0E7FF' : MUTED_COLOR } }] : [])
+      { text: primary, options: { bold: true, fontSize: isHeader ? 12.5 : 11, color: TITLE_COLOR, breakLine: true } },
+      ...(secondary ? [{ text: secondary, options: { fontSize: 9, color: MUTED_COLOR } }] : [])
     ],
     {
-      x: x + 0.08, y: y + 0.06, w: BOX_W - 0.16, h: BOX_H - 0.12,
+      x: x + 0.06, y: y + 0.05, w: BOX_W - 0.12, h: BOX_H - 0.1,
       align: 'center', valign: 'middle', fontFace: 'Calibri', shrinkText: true
     }
   );
 }
 
-function drawConnector(slide, fromX, fromY, toX, toY) {
+function hLine(slide, x1, x2, y) {
   slide.addShape('line', {
-    x: Math.min(fromX, toX),
-    y: fromY,
-    w: Math.abs(toX - fromX) || 0.01,
-    h: Math.max(toY - fromY, 0.01),
-    line: { color: LINE_COLOR, width: 1.25 },
-    flipV: toX < fromX
+    x: Math.min(x1, x2), y, w: Math.max(Math.abs(x2 - x1), 0.01), h: 0,
+    line: { color: LINE_COLOR, width: 1.25 }
   });
 }
 
-// One slide showing `managerNode` at the top plus one "page" of its direct reports
-// below it. `pageLabel` (e.g. "2 of 3") is only added to the title when a manager's
-// own report count needed more than one continuation slide (see MAX_ROWS_PER_SLIDE).
-function addTeamSlide(pptx, managerNode, reportsPage, opts, pageLabel) {
+function vLine(slide, x, y1, y2) {
+  slide.addShape('line', {
+    x, y: Math.min(y1, y2), w: 0, h: Math.max(Math.abs(y2 - y1), 0.01),
+    line: { color: LINE_COLOR, width: 1.25 }
+  });
+}
+
+// Classic "trunk -> bus -> drop" elbow connector: one line straight down from
+// the header, a horizontal bus spanning the children row (skipped entirely
+// when there's only one child - a single line down is enough), then one drop
+// straight down into each child. This is the traditional org-chart connector
+// style - the same shape SmartArt's own Hierarchy layout draws - versus a
+// diagonal line straight from parent to each child.
+function drawElbowConnectors(slide, headerCenterX, headerBottomY, childCenterXs, childTopY) {
+  vLine(slide, headerCenterX, headerBottomY, BUS_Y);
+
+  if (childCenterXs.length === 1) {
+    vLine(slide, headerCenterX, BUS_Y, childTopY);
+    return;
+  }
+
+  const minX = Math.min(...childCenterXs);
+  const maxX = Math.max(...childCenterXs);
+  hLine(slide, minX, maxX, BUS_Y);
+  childCenterXs.forEach((cx) => vLine(slide, cx, BUS_Y, childTopY));
+}
+
+// One slide showing `managerNode` at the top plus one row (up to MAX_COLS_PER_ROW)
+// of its direct reports below it, connected with elbow connectors. `pageLabel`
+// (e.g. "2 of 3") only appears when a manager has more direct reports than fit
+// in one row, so the extra rows become their own continuation slides instead of
+// cramming a second row onto the same slide (which is what made the very first
+// version of this file look like a busy grid rather than a traditional chart).
+function addTeamSlide(pptx, managerNode, reportsRow, opts, pageLabel) {
   const slide = pptx.addSlide();
   slide.background = { color: 'FFFFFF' };
 
   const { primary: managerLabel } = getDisplayLabels(managerNode, opts);
-  const titleText = `${managerLabel} - Direct Reports${pageLabel ? ` (${pageLabel})` : ''}`;
-  slide.addText(titleText, {
+  slide.addText(`${managerLabel} - Direct Reports${pageLabel ? ` (${pageLabel})` : ''}`, {
     x: 0.4, y: 0.15, w: SLIDE_WIDTH_IN - 0.8, h: 0.4,
     fontSize: 15, bold: true, color: TITLE_COLOR, fontFace: 'Calibri'
   });
@@ -99,20 +136,14 @@ function addTeamSlide(pptx, managerNode, reportsPage, opts, pageLabel) {
   const headerX = (SLIDE_WIDTH_IN - BOX_W) / 2;
   drawBox(slide, managerNode, headerX, HEADER_Y, opts, { isHeader: true });
 
-  const rows = chunk(reportsPage, MAX_COLS_PER_ROW);
-  const headerBottomX = headerX + BOX_W / 2;
-  const headerBottomY = HEADER_Y + BOX_H;
+  const rowWidth = reportsRow.length * BOX_W + (reportsRow.length - 1) * COL_GAP;
+  const startX = (SLIDE_WIDTH_IN - rowWidth) / 2;
+  const childCenterXs = reportsRow.map((_, i) => startX + i * (BOX_W + COL_GAP) + BOX_W / 2);
 
-  rows.forEach((rowNodes, rowIdx) => {
-    const rowY = FIRST_CHILD_ROW_Y + rowIdx * (BOX_H + ROW_GAP);
-    const rowWidth = rowNodes.length * BOX_W + (rowNodes.length - 1) * COL_GAP;
-    const startX = (SLIDE_WIDTH_IN - rowWidth) / 2;
+  drawElbowConnectors(slide, headerX + BOX_W / 2, HEADER_Y + BOX_H, childCenterXs, CHILD_ROW_Y);
 
-    rowNodes.forEach((child, colIdx) => {
-      const x = startX + colIdx * (BOX_W + COL_GAP);
-      drawBox(slide, child, x, rowY, opts);
-      drawConnector(slide, headerBottomX, headerBottomY, x + BOX_W / 2, rowY);
-    });
+  reportsRow.forEach((child, i) => {
+    drawBox(slide, child, startX + i * (BOX_W + COL_GAP), CHILD_ROW_Y, opts);
   });
 }
 
@@ -125,9 +156,12 @@ function countAll(node) {
 
 /**
  * Generates and downloads a .pptx: a title slide, then one slide per manager (BFS
- * over the whole subtree) showing that manager plus their direct reports as real,
- * editable PowerPoint boxes - not a picture of the on-screen tree. `rootNode` is a
- * node from buildOrgTree/buildFocusTree's memberMap (has .children, .id, etc.).
+ * over the whole subtree) showing that manager plus one row of their direct
+ * reports as real, editable PowerPoint boxes with traditional elbow connectors -
+ * not a picture of the on-screen tree, and not real SmartArt (see this file's
+ * header comment for why neither of those is the right building block here).
+ * `rootNode` is a node from buildOrgTree/buildFocusTree's memberMap (has
+ * .children, .id, etc.).
  *
  * opts: { displayField, hideNames, title, fileName } - displayField/hideNames use
  * the exact same getDisplayLabels rule the on-screen card uses (OrgNode.jsx), so
@@ -159,8 +193,8 @@ export async function exportOrgChartToPpt(rootNode, opts = {}) {
   );
 
   // Cascading slides: one per manager-with-reports, BFS order (so the deck reads
-  // top-down the same way the tree does), auto-paginated when a manager's own
-  // direct-report count doesn't fit in MAX_ROWS_PER_SLIDE rows of MAX_COLS_PER_ROW.
+  // top-down the same way the tree does), auto-paginated into continuation
+  // slides whenever a manager has more direct reports than fit in one row.
   const queue = [rootNode];
   let slideCount = 0;
   const SAFETY_SLIDE_CAP = 500; // guards against ever generating a runaway deck
@@ -170,8 +204,7 @@ export async function exportOrgChartToPpt(rootNode, opts = {}) {
     const kids = node.children || [];
     if (kids.length === 0) continue;
 
-    const perSlideCapacity = MAX_COLS_PER_ROW * MAX_ROWS_PER_SLIDE;
-    const pages = chunk(kids, perSlideCapacity);
+    const pages = chunk(kids, MAX_COLS_PER_ROW);
     pages.forEach((pageKids, pageIdx) => {
       addTeamSlide(pptx, node, pageKids, opts, pages.length > 1 ? `${pageIdx + 1} of ${pages.length}` : null);
       slideCount += 1;

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Download, Upload, RefreshCw, FileText, Database, FileDown } from 'lucide-react';
+import { X, Download, Upload, RefreshCw, FileText, Database, FileDown, FileType } from 'lucide-react';
 import { exportToCSV } from '../utils/orgUtils';
 import { exportOrgChartToPpt } from '../utils/exportPpt';
+import { downloadSmartArtOutline, SMARTART_PRACTICAL_LIMIT } from '../utils/exportSmartArtOutline';
 
 export default function ImportExportModal({
   isOpen,
@@ -42,6 +43,35 @@ export default function ImportExportModal({
     } finally {
       setIsExportingPpt(false);
     }
+  };
+
+  // See exportSmartArtOutline.js - a paste-able outline for PowerPoint's OWN
+  // SmartArt Hierarchy, as an alternative to the PPT export above. The full org
+  // chart is almost always well past the size SmartArt itself can stay readable
+  // at (no auto-pagination there, unlike the PPT export's cascading slides), so
+  // this warns essentially every time it's used from here - genuinely, not just
+  // as a formality - Focus View's version of this button is the better fit for
+  // a single team/department that's actually within SmartArt's comfort zone.
+  const handleDownloadSmartArt = () => {
+    if (!treeRoot) {
+      window.alert('No org chart is currently loaded to export.');
+      return;
+    }
+    const count = treeRoot.totalSubtreeCount + 1;
+    if (count > SMARTART_PRACTICAL_LIMIT) {
+      const proceed = window.confirm(
+        `The full org is ${count} people. PowerPoint's own SmartArt Hierarchy gets cramped ` +
+        `and hard to read well before that size (roughly ${SMARTART_PRACTICAL_LIMIT}) - there's no ` +
+        `auto-pagination like the PPT export above. For a real SmartArt diagram, the Focus View ` +
+        `tab lets you pick one team/department at a time instead. Download the full outline anyway?`
+      );
+      if (!proceed) return;
+    }
+    downloadSmartArtOutline(treeRoot, {
+      displayField,
+      hideNames,
+      fileName: `org-chart-full-smartart-outline-${new Date().toISOString().split('T')[0]}.txt`
+    });
   };
 
   // Download JSON
@@ -134,10 +164,19 @@ export default function ImportExportModal({
                 className="btn btn-secondary"
                 onClick={handleExportPpt}
                 disabled={isExportingPpt}
-                style={{ justifyContent: 'center', gridColumn: '1 / -1' }}
+                style={{ justifyContent: 'center' }}
               >
                 <FileDown size={16} />
                 <span>{isExportingPpt ? 'Generating PPT...' : 'Export Full Chart to PPT'}</span>
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleDownloadSmartArt}
+                title={`Paste into PowerPoint's Insert > SmartArt > Hierarchy Text Pane (best for one team, under ~${SMARTART_PRACTICAL_LIMIT} people)`}
+                style={{ justifyContent: 'center' }}
+              >
+                <FileType size={16} />
+                <span>SmartArt Outline (.txt)</span>
               </button>
             </div>
           </div>
