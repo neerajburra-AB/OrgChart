@@ -3,6 +3,7 @@ import { X, Download, Upload, RefreshCw, FileText, Database, FileDown, FileType 
 import { exportToCSV } from '../utils/orgUtils';
 import { exportOrgChartToPpt } from '../utils/exportPpt';
 import { downloadSmartArtOutline, SMARTART_PRACTICAL_LIMIT } from '../utils/exportSmartArtOutline';
+import { downloadSmartArtMacroData } from '../utils/exportSmartArtMacroData';
 
 export default function ImportExportModal({
   isOpen,
@@ -71,6 +72,25 @@ export default function ImportExportModal({
       displayField,
       hideNames,
       fileName: `org-chart-full-smartart-outline-${new Date().toISOString().split('T')[0]}.txt`
+    });
+  };
+
+  // See exportSmartArtMacroData.js + macros/BuildOrgChartFromCsv.bas - the third
+  // hierarchy option: this CSV, run through that VBA macro inside PowerPoint,
+  // creates REAL native SmartArt diagrams automatically, one per manager. Unlike
+  // the plain outline above, this is already pre-chunked into small "manager +
+  // up to 6 reports" groups (same grouping the PPT export uses), so it never
+  // hits SmartArt's own size limit no matter how large the org is - no warning
+  // needed here.
+  const handleDownloadSmartArtMacroData = () => {
+    if (!treeRoot) {
+      window.alert('No org chart is currently loaded to export.');
+      return;
+    }
+    downloadSmartArtMacroData(treeRoot, {
+      displayField,
+      hideNames,
+      fileName: `org-chart-full-smartart-macro-data-${new Date().toISOString().split('T')[0]}.csv`
     });
   };
 
@@ -177,6 +197,15 @@ export default function ImportExportModal({
               >
                 <FileType size={16} />
                 <span>SmartArt Outline (.txt)</span>
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleDownloadSmartArtMacroData}
+                title="Run through macros/BuildOrgChartFromCsv.bas inside PowerPoint to auto-generate real, native SmartArt Hierarchy diagrams for the whole org, one per manager"
+                style={{ justifyContent: 'center' }}
+              >
+                <FileType size={16} />
+                <span>Download for SmartArt Macro (.csv)</span>
               </button>
             </div>
           </div>

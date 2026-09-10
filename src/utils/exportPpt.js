@@ -61,8 +61,47 @@ function chunk(arr, size) {
   return out;
 }
 
-function drawBox(slide, node, x, y, opts, { isHeader = false } = {}) {
-  const { primary, secondary } = getDisplayLabels(node, opts);
+/**
+ * Walks `rootNode` BFS and groups it into the same "one manager + one row of
+ * their direct reports" slide units used both by the native-shapes PPT export
+ * below AND by exportSmartArtMacroData.js's VBA-macro data file - ONE shared
+ * traversal instead of two independently-written copies, since this project
+ * has already hit real bugs from exactly that kind of drift (see
+ * computeCollapseStateFromRoot's comment in orgUtils.js for the earlier case).
+ * A manager with more direct reports than MAX_COLS_PER_ROW becomes multiple
+ * consecutive specs (pageLabel "1 of 3", "2 of 3", ...) rather than one
+ * overcrowded slide/diagram.
+ */
+export function buildCascadingSlideSpecs(rootNode, opts = {}) {
+  const specs = [];
+  const queue = [rootNode];
+  const SAFETY_SLIDE_CAP = 500; // guards against ever generating a runaway deck
+  let count = 0;
+
+  while (queue.length > 0 && count < SAFETY_SLIDE_CAP) {
+    const node = queue.shift();
+    const kids = node.children || [];
+    if (kids.length === 0) continue;
+
+    const managerLabels = getDisplayLabels(node, opts);
+    const pages = chunk(kids, MAX_COLS_PER_ROW);
+    pages.forEach((pageKids, pageIdx) => {
+      specs.push({
+        title: `${managerLabels.primary} - Direct Reports${pages.length > 1 ? ` (${pageIdx + 1} of ${pages.length})` : ''}`,
+        manager: managerLabels,
+        reports: pageKids.map((k) => getDisplayLabels(k, opts))
+      });
+      count += 1;
+    });
+
+    kids.forEach((k) => queue.push(k));
+  }
+
+  return specs;
+}
+
+function drawBox(slide, labels, x, y, { isHeader = false } = {}) {
+  const { primary, secondary } = labels;
 
   slide.addShape('roundRect', {
     x, y, w: BOX_W, h: BOX_H,
@@ -117,33 +156,30 @@ function drawElbowConnectors(slide, headerCenterX, headerBottomY, childCenterXs,
   childCenterXs.forEach((cx) => vLine(slide, cx, BUS_Y, childTopY));
 }
 
-// One slide showing `managerNode` at the top plus one row (up to MAX_COLS_PER_ROW)
-// of its direct reports below it, connected with elbow connectors. `pageLabel`
-// (e.g. "2 of 3") only appears when a manager has more direct reports than fit
-// in one row, so the extra rows become their own continuation slides instead of
-// cramming a second row onto the same slide (which is what made the very first
-// version of this file look like a busy grid rather than a traditional chart).
-function addTeamSlide(pptx, managerNode, reportsRow, opts, pageLabel) {
+// One slide for one buildCascadingSlideSpecs() entry: the manager at the top
+// plus their (up to MAX_COLS_PER_ROW) direct reports in a row below, connected
+// with elbow connectors.
+function addTeamSlide(pptx, spec) {
   const slide = pptx.addSlide();
   slide.background = { color: 'FFFFFF' };
 
-  const { primary: managerLabel } = getDisplayLabels(managerNode, opts);
-  slide.addText(`${managerLabel} - Direct Reports${pageLabel ? ` (${pageLabel})` : ''}`, {
+  slide.addText(spec.title, {
     x: 0.4, y: 0.15, w: SLIDE_WIDTH_IN - 0.8, h: 0.4,
     fontSize: 15, bold: true, color: TITLE_COLOR, fontFace: 'Calibri'
   });
 
   const headerX = (SLIDE_WIDTH_IN - BOX_W) / 2;
-  drawBox(slide, managerNode, headerX, HEADER_Y, opts, { isHeader: true });
+  drawBox(slide, spec.manager, headerX, HEADER_Y, { isHeader: true });
 
+  const reportsRow = spec.reports;
   const rowWidth = reportsRow.length * BOX_W + (reportsRow.length - 1) * COL_GAP;
   const startX = (SLIDE_WIDTH_IN - rowWidth) / 2;
   const childCenterXs = reportsRow.map((_, i) => startX + i * (BOX_W + COL_GAP) + BOX_W / 2);
 
   drawElbowConnectors(slide, headerX + BOX_W / 2, HEADER_Y + BOX_H, childCenterXs, CHILD_ROW_Y);
 
-  reportsRow.forEach((child, i) => {
-    drawBox(slide, child, startX + i * (BOX_W + COL_GAP), CHILD_ROW_Y, opts);
+  reportsRow.forEach((labels, i) => {
+    drawBox(slide, labels, startX + i * (BOX_W + COL_GAP), CHILD_ROW_Y);
   });
 }
 
@@ -192,28 +228,12 @@ export async function exportOrgChartToPpt(rootNode, opts = {}) {
     }
   );
 
-  // Cascading slides: one per manager-with-reports, BFS order (so the deck reads
-  // top-down the same way the tree does), auto-paginated into continuation
-  // slides whenever a manager has more direct reports than fit in one row.
-  const queue = [rootNode];
-  let slideCount = 0;
-  const SAFETY_SLIDE_CAP = 500; // guards against ever generating a runaway deck
-
-  while (queue.length > 0 && slideCount < SAFETY_SLIDE_CAP) {
-    const node = queue.shift();
-    const kids = node.children || [];
-    if (kids.length === 0) continue;
-
-    const pages = chunk(kids, MAX_COLS_PER_ROW);
-    pages.forEach((pageKids, pageIdx) => {
-      addTeamSlide(pptx, node, pageKids, opts, pages.length > 1 ? `${pageIdx + 1} of ${pages.length}` : null);
-      slideCount += 1;
-    });
-
-    kids.forEach((k) => queue.push(k));
-  }
+  // Cascading slides: one per manager-with-reports (see buildCascadingSlideSpecs),
+  // BFS order so the deck reads top-down the same way the tree does.
+  const specs = buildCascadingSlideSpecs(rootNode, opts);
+  specs.forEach((spec) => addTeamSlide(pptx, spec));
 
   const fileName = opts.fileName || 'org-chart.pptx';
   await pptx.writeFile({ fileName });
-  return { slideCount: slideCount + 1, fileName };
+  return { slideCount: specs.length + 1, fileName };
 }

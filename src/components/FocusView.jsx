@@ -16,6 +16,7 @@ import OrgCanvas from './OrgCanvas';
 import { buildFocusTree, computeCollapseStateFromRoot } from '../utils/orgUtils';
 import { exportOrgChartToPpt } from '../utils/exportPpt';
 import { downloadSmartArtOutline, SMARTART_PRACTICAL_LIMIT } from '../utils/exportSmartArtOutline';
+import { downloadSmartArtMacroData } from '../utils/exportSmartArtMacroData';
 
 // Same depth-1 default (root + direct reports expanded, everything deeper collapsed)
 // as the main Tree - see computeCollapseStateFromRoot in orgUtils.js.
@@ -107,6 +108,22 @@ export default function FocusView({ members, displayField, hideNames, cardMode, 
     });
   };
 
+  // See exportSmartArtMacroData.js + macros/BuildOrgChartFromCsv.bas - the third
+  // hierarchy option: run this CSV through that VBA macro inside PowerPoint to
+  // auto-generate REAL native SmartArt diagrams, one per manager in this
+  // person's whole team. Already pre-chunked into small "manager + up to 6
+  // reports" groups, so - unlike the plain outline above - it never hits
+  // SmartArt's own size limit, no matter how big this team is. No warning
+  // needed here.
+  const handleDownloadSmartArtMacroData = () => {
+    if (!treeRoot) return;
+    downloadSmartArtMacroData(treeRoot, {
+      displayField,
+      hideNames,
+      fileName: `org-chart-${treeRoot.name.replace(/\s+/g, '-').toLowerCase()}-smartart-macro-data.csv`
+    });
+  };
+
   if (!focusRootId) {
     return (
       <div className="focus-picker-screen">
@@ -188,6 +205,15 @@ export default function FocusView({ members, displayField, hideNames, cardMode, 
           >
             <FileType size={14} />
             <span>SmartArt Outline (.txt)</span>
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={handleDownloadSmartArtMacroData}
+            title="Run through macros/BuildOrgChartFromCsv.bas inside PowerPoint to auto-generate real, native SmartArt Hierarchy diagrams for this whole team, one per manager"
+          >
+            <FileType size={14} />
+            <span>SmartArt Macro (.csv)</span>
           </button>
 
           <button className="btn btn-primary" onClick={handleExportPpt} disabled={isExporting}>
