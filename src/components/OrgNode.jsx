@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, MapPin, Users, AlertTriangle } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
+import { getDisplayLabels } from '../utils/orgUtils';
 
 // First letter of up to the first two words of a name, e.g. "Elena Rostova" -> "ER".
 // Used as a network-independent avatar fallback - see the avatarFailed state below.
@@ -17,9 +18,21 @@ export default function OrgNode({
   isDimmed,
   focusedNodeId,
   cardMode,
+  displayField = 'name',
+  hideNames = false,
   onSelect,
   onToggleCollapse
 }) {
+  // See getDisplayLabels in orgUtils.js for the shared rule (also used by the PPT
+  // export) - primary is whatever field "Display by" picked (Name by default), falling
+  // back to Designation if Hide Names is on and Name was picked; secondary is
+  // Designation unless that's already the primary, in which case it's Department.
+  const { primary, secondary } = getDisplayLabels(node, { displayField, hideNames });
+  // Initials/alt text are derived from the same value the card actually shows, not the
+  // raw name - so turning Hide Names on doesn't leak an identity through the avatar
+  // fallback or a hover tooltip that a hidden name wouldn't otherwise reveal.
+  const identityLabel = hideNames ? primary : node.name;
+
   const deptInfo = DEPARTMENTS[node.department] || {
     name: node.department,
     color: '#6366f1',
@@ -117,7 +130,7 @@ export default function OrgNode({
           {hasPhoto ? (
             <img
               src={node.avatar}
-              alt={node.name}
+              alt={identityLabel}
               className="node-avatar"
               onError={() => setAvatarFailed(true)}
             />
@@ -125,17 +138,17 @@ export default function OrgNode({
             <div
               className="node-avatar node-avatar-initials"
               style={{ background: deptInfo.color }}
-              title={node.name}
+              title={identityLabel}
             >
-              {getInitials(node.name)}
+              {getInitials(identityLabel)}
             </div>
           )}
           <div className={`status-dot ${node.status}`} title={`Status: ${node.status}`} />
         </div>
 
         <div className="node-main-info">
-          <div className="node-name" title={node.name}>{node.name}</div>
-          <div className="node-title" title={node.title}>{node.title}</div>
+          <div className="node-name" title={primary}>{primary}</div>
+          {secondary && <div className="node-title" title={secondary}>{secondary}</div>}
 
           <span
             className="node-dept-tag"

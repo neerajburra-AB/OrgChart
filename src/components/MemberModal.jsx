@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, Edit3, Sparkles } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 import { isDescendant, getUniqueSortedValues, LEVEL_RANK } from '../utils/orgUtils';
+
 import ManagerPicker from './ManagerPicker';
 
 export default function MemberModal({
@@ -18,6 +19,7 @@ export default function MemberModal({
     title: '',
     department: '',
     entity: '',
+    projects: '',
     level: '',
     managerId: presetManagerId || (allMembers[0]?.id || ''),
     email: '',
@@ -50,6 +52,11 @@ export default function MemberModal({
     [allMembers]
   );
 
+  const availableProjects = useMemo(
+    () => getUniqueSortedValues(allMembers, 'projects'),
+    [allMembers]
+  );
+
   useEffect(() => {
     if (mode === 'edit' && initialData) {
       setFormData({
@@ -66,6 +73,7 @@ export default function MemberModal({
         // match anything in this company's actual Sheet.
         department: availableDepartments[0] || '',
         entity: '',
+        projects: '',
         level: availableLevels[0] || '',
         managerId: presetManagerId || (allMembers[0]?.id || ''),
         email: '',
@@ -216,6 +224,27 @@ export default function MemberModal({
                 </datalist>
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Projects</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  list="projects-options"
+                  placeholder="e.g. Riverfront Metro Expansion"
+                  value={formData.projects}
+                  onChange={(e) => setFormData({ ...formData, projects: e.target.value })}
+                />
+                {/* One project per employee (confirmed) - a plain text+datalist field,
+                    same pattern as Entity above, not a comma-separated list like Skills. */}
+                <datalist id="projects-options">
+                  {availableProjects.map(project => (
+                    <option key={project} value={project} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div className="form-group">
                 <label className="form-label">Status</label>
                 <select

@@ -152,6 +152,138 @@ export function buildOrgTree(members, collapseState = {}) {
 }
 
 /**
+ * Generalized version of the depth-based "expand root + N levels, collapse the rest"
+ * BFS that computeDefaultCollapseState (App.jsx) uses for the real tree - pulled out
+ * here so a second, independent root (the Focus view's chosen starting employee, see
+ * buildFocusTree below) gets the exact same default-collapse behavior instead of a
+ * second hand-rolled copy of this logic. This project has already hit the same bug
+ * twice from two independent copies of a BFS like this one drifting apart (see the
+ * "To Be Confirmed / Unknown RM" section of the deployment notes) - one shared
+ * implementation instead of two is deliberate, not just tidiness.
+ *
+ * `baseCollapse` seeds the result (e.g. the real tree always starts the synthetic
+ * "Unknown RM" node collapsed regardless of depth - App.jsx passes that in here rather
+ * than this function knowing about it).
+ */
+export function computeCollapseStateFromRoot(memberList, rootId, autoExpandDepth = 1, baseCollapse = {}) {
+  if (!memberList || memberList.length === 0 || !rootId) return baseCollapse;
+
+  const byId = new Map(memberList.map((m) => [m.id, m]));
+  if (!byId.has(rootId)) return baseCollapse;
+
+  const childrenOf = new Map();
+  memberList.forEach((m) => {
+    if (m.managerId && byId.has(m.managerId)) {
+      if (!childrenOf.has(m.managerId)) childrenOf.set(m.managerId, []);
+      childrenOf.get(m.managerId).push(m.id);
+    }
+  });
+
+  const collapse = { ...baseCollapse };
+  const visited = new Set([rootId]);
+  const queue = [{ id: rootId, depth: 0 }];
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift();
+    const kids = childrenOf.get(id) || [];
+    if (kids.length > 0 && depth >= autoExpandDepth) {
+      collapse[id] = true;
+    }
+    kids.forEach((childId) => {
+      if (!visited.has(childId)) {
+        visited.add(childId);
+        queue.push({ id: childId, depth: depth + 1 });
+      }
+    });
+  }
+  return collapse;
+}
+
+/**
+ * All descendant ids of rootId (children, grandchildren, ...), walked via managerId -
+ * NOT including rootId itself. Cycle-guarded the same way as isDescendant/getAncestorIds
+ * above. Used by buildFocusTree below to cut out just one person's subtree.
+ */
+export function collectDescendantIds(members, rootId) {
+  const byManager = new Map();
+  members.forEach((m) => {
+    if (m.managerId) {
+      if (!byManager.has(m.managerId)) byManager.set(m.managerId, []);
+      byManager.get(m.managerId).push(m.id);
+    }
+  });
+
+  const result = new Set();
+  const visited = new Set([rootId]);
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const id = queue.shift();
+    const kids = byManager.get(id) || [];
+    kids.forEach((kidId) => {
+      if (!visited.has(kidId)) {
+        visited.add(kidId);
+        result.add(kidId);
+        queue.push(kidId);
+      }
+    });
+  }
+  return result;
+}
+
+/**
+ * Builds a tree rooted at ONE chosen employee (the "Focus" view - see FocusView.jsx) -
+ * that employee plus everyone below them, with everyone above and beside them left out
+ * entirely (not just hidden - buildOrgTree never even sees them, so nothing about the
+ * real root/ancestors leaks in via the orphan-grouping fallback either). Reuses
+ * buildOrgTree as-is by handing it a filtered member list with the chosen employee's
+ * own managerId cleared, so buildOrgTree's normal root-selection picks them.
+ */
+export function buildFocusTree(members, rootId, collapseState = {}) {
+  const rootMember = members.find((m) => m.id === rootId);
+  if (!rootMember) return { root: null, memberMap: new Map() };
+
+  const descendantIds = collectDescendantIds(members, rootId);
+  const subtreeMembers = [
+    { ...rootMember, managerId: null },
+    ...members.filter((m) => descendantIds.has(m.id))
+  ];
+  return buildOrgTree(subtreeMembers, collapseState);
+}
+
+/**
+ * Decides what a card/box should show as its PRIMARY (bold) and SECONDARY (smaller)
+ * label, given the current "Display by" field choice and whether names should be
+ * hidden entirely (see the Display controls in ControlsBar.jsx). ONE shared rule used
+ * by both the on-screen card (OrgNode.jsx) and the PPT export (exportPpt.js) - so a
+ * presentation exported to PPT always matches exactly what was on screen when it was
+ * generated, rather than two independently-written label rules drifting apart.
+ *
+ * - displayField picks the primary field: 'name' | 'title' | 'department' | 'entity' | 'projects'.
+ * - hideNames forces the primary away from 'name' (falls back to 'title'/Designation) -
+ *   asking to hide names while also asking to show Name as the primary field is
+ *   contradictory, so hiding wins.
+ * - The secondary line is Designation, unless Designation IS the primary (then it's
+ *   Department instead) - keeps the two lines from ever duplicating each other. Name is
+ *   never used as the secondary line, so hideNames can never leak a name that way either.
+ */
+export function getDisplayLabels(member, { displayField = 'name', hideNames = false } = {}) {
+  const fieldMap = {
+    name: member.name,
+    title: member.title,
+    department: member.department,
+    entity: member.entity,
+    projects: member.projects
+  };
+
+  const effectiveField = (hideNames && displayField === 'name') ? 'title' : displayField;
+  const primary = fieldMap[effectiveField] || member.name || member.id;
+
+  const secondaryField = effectiveField === 'title' ? 'department' : 'title';
+  const secondary = fieldMap[secondaryField] || '';
+
+  return { primary, secondary };
+}
+
+/**
  * A member counts as "inactive" only when their status is exactly 'inactive' - someone
  * 'on-leave' or 'hiring' (or any other status value) still counts as visible. Case-
  * insensitive so a live-Sheet cell typed as "Inactive" still matches.
@@ -271,6 +403,8 @@ export function filterMembers(members, { search = '', department = 'all', level 
       m.title.toLowerCase().includes(query) ||
       m.email.toLowerCase().includes(query) ||
       m.location.toLowerCase().includes(query) ||
+      (m.entity || '').toLowerCase().includes(query) ||
+      (m.projects || '').toLowerCase().includes(query) ||
       (m.skills && m.skills.some(s => s.toLowerCase().includes(query)));
 
     const matchesDept = department === 'all' || m.department === department;

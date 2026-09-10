@@ -12,6 +12,8 @@ export default function OrgCanvas({
   zoom,
   layoutMode = 'waterfall', // 'waterfall' | 'classic' | 'horizontal'
   cardMode,
+  displayField = 'name',
+  hideNames = false,
   onSelectMember,
   onToggleCollapse,
   onZoomChange,
@@ -180,6 +182,8 @@ export default function OrgCanvas({
           <WaterfallTreeGroup
             node={treeRoot}
             cardMode={cardMode}
+            displayField={displayField}
+            hideNames={hideNames}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
             searchPathIds={searchPathIds}
@@ -192,6 +196,8 @@ export default function OrgCanvas({
             node={treeRoot}
             layoutMode={layoutMode}
             cardMode={cardMode}
+            displayField={displayField}
+            hideNames={hideNames}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
             searchPathIds={searchPathIds}
@@ -363,6 +369,8 @@ function WaterfallTreeGroup({
   node,
   depth = 0,
   cardMode,
+  displayField,
+  hideNames,
   selectedId,
   searchMatchIds,
   searchPathIds,
@@ -393,6 +401,8 @@ function WaterfallTreeGroup({
           isDimmed={isDimmed}
           focusedNodeId={focusedNodeId}
           cardMode={cardMode}
+          displayField={displayField}
+          hideNames={hideNames}
           onSelect={onSelect}
           onToggleCollapse={onToggleCollapse}
         />
@@ -405,6 +415,8 @@ function WaterfallTreeGroup({
                 node={childNode}
                 depth={depth + 1}
                 cardMode={cardMode}
+                displayField={displayField}
+                hideNames={hideNames}
                 selectedId={selectedId}
                 searchMatchIds={searchMatchIds}
                 searchPathIds={searchPathIds}
@@ -428,6 +440,8 @@ function WaterfallTreeGroup({
         isDimmed={isDimmed}
         focusedNodeId={focusedNodeId}
         cardMode={cardMode}
+        displayField={displayField}
+        hideNames={hideNames}
         onSelect={onSelect}
         onToggleCollapse={onToggleCollapse}
       />
@@ -442,6 +456,8 @@ function WaterfallTreeGroup({
               node={childNode}
               depth={depth + 1}
               cardMode={cardMode}
+              displayField={displayField}
+              hideNames={hideNames}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
               searchPathIds={searchPathIds}
@@ -460,6 +476,8 @@ function ClassicTreeNodeGroup({
   node,
   layoutMode,
   cardMode,
+  displayField,
+  hideNames,
   selectedId,
   searchMatchIds,
   searchPathIds,
@@ -484,6 +502,8 @@ function ClassicTreeNodeGroup({
         isDimmed={isDimmed}
         focusedNodeId={focusedNodeId}
         cardMode={cardMode}
+        displayField={displayField}
+        hideNames={hideNames}
         onSelect={onSelect}
         onToggleCollapse={onToggleCollapse}
       />
@@ -498,6 +518,8 @@ function ClassicTreeNodeGroup({
               node={childNode}
               layoutMode={layoutMode}
               cardMode={cardMode}
+              displayField={displayField}
+              hideNames={hideNames}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
               searchPathIds={searchPathIds}

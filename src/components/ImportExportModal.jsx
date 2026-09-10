@@ -1,18 +1,48 @@
 import React, { useState } from 'react';
-import { X, Download, Upload, RefreshCw, FileText, Database } from 'lucide-react';
+import { X, Download, Upload, RefreshCw, FileText, Database, FileDown } from 'lucide-react';
 import { exportToCSV } from '../utils/orgUtils';
+import { exportOrgChartToPpt } from '../utils/exportPpt';
 
 export default function ImportExportModal({
   isOpen,
   members,
+  treeRoot,
+  displayField,
+  hideNames,
   onClose,
   onImportData,
   onResetToDemo
 }) {
   const [jsonInput, setJsonInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isExportingPpt, setIsExportingPpt] = useState(false);
 
   if (!isOpen) return null;
+
+  // Native PPT shapes, not a screenshot - see exportPpt.js's own header comment for
+  // why (an earlier screenshot-based Export PNG/PDF in this project was removed for
+  // being unreliable). Whatever's currently on screen as the full org tree (root ->
+  // everyone) is what gets exported here, split across cascading per-manager slides;
+  // for just one person's team, use "Export to PPT" on the Focus View tab instead.
+  const handleExportPpt = async () => {
+    if (!treeRoot) {
+      window.alert('No org chart is currently loaded to export.');
+      return;
+    }
+    setIsExportingPpt(true);
+    try {
+      await exportOrgChartToPpt(treeRoot, {
+        displayField,
+        hideNames,
+        title: 'Full Organization Chart',
+        fileName: `org-chart-full-${new Date().toISOString().split('T')[0]}.pptx`
+      });
+    } catch (err) {
+      window.alert(`Could not generate the PPT: ${err.message}`);
+    } finally {
+      setIsExportingPpt(false);
+    }
+  };
 
   // Download JSON
   const handleExportJSON = () => {
@@ -99,6 +129,15 @@ export default function ImportExportModal({
               <button className="btn btn-secondary" onClick={handleExportCSV} style={{ justifyContent: 'center' }}>
                 <FileText size={16} />
                 <span>Export as CSV</span>
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleExportPpt}
+                disabled={isExportingPpt}
+                style={{ justifyContent: 'center', gridColumn: '1 / -1' }}
+              >
+                <FileDown size={16} />
+                <span>{isExportingPpt ? 'Generating PPT...' : 'Export Full Chart to PPT'}</span>
               </button>
             </div>
           </div>

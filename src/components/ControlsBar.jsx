@@ -10,7 +10,9 @@ import {
   ChevronsDown,
   ChevronsUp,
   SlidersHorizontal,
-  Filter
+  Filter,
+  Tags,
+  UserX
 } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 
@@ -36,8 +38,23 @@ export default function ControlsBar({
   onExpandAll,
   onCollapseAll,
   matchCount,
-  totalCount
+  totalCount,
+  displayField = 'name',
+  setDisplayField,
+  hideNames = false,
+  setHideNames
 }) {
+  // Hiding names while the card's primary field is still set to "Name" is a
+  // contradiction (getDisplayLabels in orgUtils.js resolves it by falling back to
+  // Designation) - checking "Hide Names" here snaps the dropdown to Designation right
+  // away instead of leaving it showing "Name" while the card silently shows something
+  // else, which would look like a bug rather than the actual (documented) fallback.
+  const handleHideNamesToggle = (checked) => {
+    setHideNames(checked);
+    if (checked && displayField === 'name') {
+      setDisplayField('title');
+    }
+  };
   return (
     <div className="controls-toolbar">
       {/* Left: Department & Level Filters */}
@@ -96,6 +113,46 @@ export default function ControlsBar({
             Showing {matchCount} of {totalCount}
           </span>
         )}
+      </div>
+
+      {/* Display Mode: what a card's PRIMARY (bold) line shows, and whether real names
+          are hidden entirely - for presenting by designation/department/entity/projects
+          instead of by name (see getDisplayLabels in orgUtils.js for the exact rule,
+          shared with the PPT export so an exported deck always matches what's on
+          screen). */}
+      <div className="toolbar-group">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+          <Tags size={14} />
+          <span style={{ fontWeight: 600 }}>Display:</span>
+        </div>
+
+        <select
+          className="select-box"
+          value={displayField}
+          onChange={(e) => setDisplayField(e.target.value)}
+          title="What each card shows as its main label"
+        >
+          <option value="name">Name</option>
+          <option value="title">Designation</option>
+          <option value="department">Department</option>
+          <option value="entity">Entity</option>
+          <option value="projects">Projects</option>
+        </select>
+
+        <label
+          className="btn btn-secondary"
+          style={{ padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}
+          title="Never show a real name on any card, regardless of the Display field above"
+        >
+          <input
+            type="checkbox"
+            checked={hideNames}
+            onChange={(e) => handleHideNamesToggle(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          <UserX size={14} />
+          <span style={{ marginLeft: 4 }}>Hide Names</span>
+        </label>
       </div>
 
       {/* Center: Layout Mode Switches & Actions */}

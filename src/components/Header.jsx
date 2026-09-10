@@ -11,7 +11,8 @@ import {
   Moon,
   Download,
   Eye,
-  EyeOff
+  EyeOff,
+  Crosshair
 } from 'lucide-react';
 import SearchAutocomplete from './SearchAutocomplete';
 
@@ -76,6 +77,17 @@ export default function Header({
           >
             <BarChart3 size={15} />
             <span>Analytics</span>
+          </button>
+          {/* Own page, additive only - doesn't touch the Tree/Directory/Analytics tabs
+              above at all. Shows one chosen employee's subtree in isolation (everyone
+              above/beside them left out), with its own PPT export - see FocusView.jsx. */}
+          <button
+            className={`view-tab ${activeView === 'focus' ? 'active' : ''}`}
+            onClick={() => setActiveView('focus')}
+            title="Show one employee's team structure on its own page"
+          >
+            <Crosshair size={15} />
+            <span>Focus View</span>
           </button>
         </div>
       </div>

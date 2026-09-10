@@ -4,6 +4,7 @@ import ControlsBar from './components/ControlsBar';
 import OrgCanvas from './components/OrgCanvas';
 import ListView from './components/ListView';
 import AnalyticsView from './components/AnalyticsView';
+import FocusView from './components/FocusView';
 import MemberDrawer from './components/MemberDrawer';
 import MemberModal from './components/MemberModal';
 import ImportExportModal from './components/ImportExportModal';
@@ -18,6 +19,7 @@ import {
   isInactiveStatus,
   reparentAroundInactive,
   resolveSkipLevelManagerId,
+  computeCollapseStateFromRoot,
   LEVEL_RANK,
   UNASSIGNED_MANAGER_ID
 } from './utils/orgUtils';
@@ -116,15 +118,6 @@ function computeDefaultCollapseState(memberList) {
     return baseCollapse;
   }
 
-  const byId = new Map(memberList.map((m) => [m.id, m]));
-  const childrenOf = new Map();
-  memberList.forEach((m) => {
-    if (m.managerId && byId.has(m.managerId)) {
-      if (!childrenOf.has(m.managerId)) childrenOf.set(m.managerId, []);
-      childrenOf.get(m.managerId).push(m.id);
-    }
-  });
-
   // Root for this BFS must be picked the same way buildOrgTree picks the real tree
   // root - genuinely blank managerId only. A non-blank-but-invalid managerId is a
   // data error, not a signal of being the top of the org (see buildOrgTree for the
@@ -133,17 +126,11 @@ function computeDefaultCollapseState(memberList) {
   const root = memberList.find((m) => !m.managerId);
   if (!root) return baseCollapse;
 
-  const collapse = { ...baseCollapse };
-  const queue = [{ id: root.id, depth: 0 }];
-  while (queue.length > 0) {
-    const { id, depth } = queue.shift();
-    const kids = childrenOf.get(id) || [];
-    if (kids.length > 0 && depth >= AUTO_EXPAND_DEPTH) {
-      collapse[id] = true;
-    }
-    kids.forEach((childId) => queue.push({ id: childId, depth: depth + 1 }));
-  }
-  return collapse;
+  // The actual BFS now lives in orgUtils.js (computeCollapseStateFromRoot) so the
+  // Focus view's chosen root gets the identical depth-1-expand behavior instead of a
+  // second hand-rolled copy of this logic - see that function's own comment for why
+  // that's deliberate.
+  return computeCollapseStateFromRoot(memberList, root.id, AUTO_EXPAND_DEPTH, baseCollapse);
 }
 
 export default function App() {
@@ -170,6 +157,10 @@ export default function App() {
     title: row.title ?? '',
     department: row.department ?? '',
     entity: row.entity ?? '',
+    // A newer column, same treatment as entity above: added to the live Sheet for the
+    // "Display by" card option (ControlsBar.jsx) - a single value per employee, not a
+    // list like skills (confirmed with the user rather than assumed).
+    projects: row.projects ?? '',
     email: row.email ?? '',
     phone: row.phone ?? '',
     location: row.location ?? '',
@@ -303,8 +294,18 @@ export default function App() {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  // View Mode: 'tree' | 'list' | 'analytics'
+  // View Mode: 'tree' | 'list' | 'analytics' | 'focus'
   const [activeView, setActiveView] = useState('tree');
+
+  // What field a card's PRIMARY (bold) line shows - see getDisplayLabels in orgUtils.js
+  // for the exact rule shared between the on-screen card and the PPT export. Default
+  // 'name' matches the app's original always-showed-the-name behavior.
+  const [displayField, setDisplayField] = useState('name');
+  // Independent of displayField: when on, a real name never appears anywhere on a card
+  // or in an exported PPT, even if displayField is later switched back to 'name' (see
+  // getDisplayLabels - hideNames forces the primary to Designation in that case). For
+  // presenting headcount/structure without identifying individuals.
+  const [hideNames, setHideNames] = useState(false);
 
   // Search & Filter State
   const [search, setSearch] = useState('');
@@ -700,6 +701,10 @@ export default function App() {
             onCollapseAll={handleCollapseAll}
             matchCount={filteredMembers.length}
             totalCount={members.length}
+            displayField={displayField}
+            setDisplayField={setDisplayField}
+            hideNames={hideNames}
+            setHideNames={setHideNames}
           />
         )}
 
@@ -716,10 +721,22 @@ export default function App() {
               zoom={zoom}
               layoutMode={layoutMode}
               cardMode={cardMode}
+              displayField={displayField}
+              hideNames={hideNames}
               onSelectMember={(member) => setSelectedMember(member)}
               onToggleCollapse={handleToggleCollapse}
               onZoomChange={setZoom}
               onRegisterFitToScreen={(fn) => { fitToScreenRef.current = fn; }}
+            />
+          )}
+
+          {activeView === 'focus' && (
+            <FocusView
+              members={membersForTree}
+              displayField={displayField}
+              hideNames={hideNames}
+              cardMode={cardMode}
+              setCardMode={setCardMode}
             />
           )}
 
@@ -769,6 +786,9 @@ export default function App() {
       <ImportExportModal
         isOpen={importExportModalOpen}
         members={members}
+        treeRoot={treeRoot}
+        displayField={displayField}
+        hideNames={hideNames}
         onClose={() => setImportExportModalOpen(false)}
         onImportData={(importedData) => setMembers(importedData)}
         onResetToDemo={handleResetToDemo}

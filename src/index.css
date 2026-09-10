@@ -352,6 +352,63 @@ body {
   color: var(--text-secondary);
 }
 
+/* Focus View (FocusView.jsx) - a separate page from the main Tree/Directory/Analytics
+   tabs above, so its layout is intentionally self-contained rather than reusing
+   .app-main/.controls-toolbar's exact nesting - see FocusView.jsx for why. */
+.focus-view-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.focus-canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.focus-picker-screen {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.focus-picker-card {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 32px 28px;
+  background: var(--bg-surface);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.focus-picker-card h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 4px 0 0;
+}
+
+.focus-picker-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.focus-picker-card .manager-picker {
+  width: 100%;
+  text-align: left;
+}
+
 /* Main Content Area */
 .app-main {
   flex: 1;
