@@ -40,6 +40,24 @@ export default function OrgNode({
     bg: 'rgba(99, 102, 241, 0.15)'
   };
 
+  // Card top accent bar + avatar-initials circle color, by STATUS rather than
+  // Department - the department name chip (node-dept-tag below) still uses
+  // deptInfo.color/bg as-is and is unaffected. Before this, both the bar and the
+  // initials circle used deptInfo.color too, which meant every employee in a
+  // department not listed in DEPARTMENTS (initialData.js) - a very normal thing on
+  // a large real Sheet - fell back to the same generic indigo/violet, regardless of
+  // whether that person was Active, Inactive, or anything else. An unrecognized
+  // status string falls back to the same neutral gray the status-dot uses for
+  // Inactive, not indigo - so a data mismatch here can no longer look like "the
+  // app's default color" again.
+  const STATUS_ACCENT_COLORS = {
+    active: 'var(--status-accent-active)',
+    'on-leave': 'var(--status-accent-leave)',
+    hiring: 'var(--status-accent-hiring)',
+    inactive: 'var(--status-accent-inactive)'
+  };
+  const statusAccentColor = STATUS_ACCENT_COLORS[node.status] || '#6b7280';
+
   const hasChildren = node.children && node.children.length > 0;
   const isCompact = cardMode === 'compact';
   const isFocused = focusedNodeId === node.id;
@@ -115,10 +133,11 @@ export default function OrgNode({
         onSelect(node);
       }}
     >
-      {/* Department accent line at top */}
+      {/* Status accent line at top (Active/On Leave/Hiring/Inactive) - was Department
+          color before, see statusAccentColor above for why that changed. */}
       <div
         className="node-dept-bar"
-        style={{ background: deptInfo.color }}
+        style={{ background: statusAccentColor }}
       />
 
       {/* Employee ID, top-right corner - on its OWN row above node-header, not sharing
@@ -148,7 +167,7 @@ export default function OrgNode({
           ) : (
             <div
               className="node-avatar node-avatar-initials"
-              style={{ background: deptInfo.color }}
+              style={{ background: statusAccentColor }}
               title={identityLabel}
             >
               {getInitials(identityLabel)}

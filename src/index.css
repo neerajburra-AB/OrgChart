@@ -25,6 +25,18 @@
   --status-hiring: #ec4899;
   --status-inactive: #6b7280;
 
+  /* Card top accent bar + avatar-initials circle color, by STATUS (Active/On Leave/
+     Hiring/Inactive) - deliberately separate variables from --status-* above, which
+     only feed the small corner status-dot. That dot keeps its own existing palette for
+     now (a separate, later change) - these only drive the two card elements that used
+     to be colored by DEPARTMENT (deptInfo.color) and defaulted to indigo/violet for any
+     department not in the DEPARTMENTS map in initialData.js. The department name chip
+     itself (.node-dept-tag) is untouched and still shows the real department color. */
+  --status-accent-active: #10b981;
+  --status-accent-leave: #f59e0b;
+  --status-accent-hiring: #eab308;
+  --status-accent-inactive: #ef4444;
+
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
