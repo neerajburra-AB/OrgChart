@@ -22,7 +22,9 @@ import {
   resolveSkipLevelManagerId,
   computeCollapseStateFromRoot,
   LEVEL_RANK,
-  UNASSIGNED_MANAGER_ID
+  UNASSIGNED_MANAGER_ID,
+  ZOOM_MIN,
+  ZOOM_MAX
 } from './utils/orgUtils';
 import * as XLSX from 'xlsx';
 
@@ -510,8 +512,8 @@ export default function App() {
   }, [memberMap]);
 
   // Zoom Handlers
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.15, 2.0));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.15, 0.4));
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.15, ZOOM_MAX));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.15, ZOOM_MIN));
   const handleResetZoom = () => setZoom(1.0);
   const handleFitToScreen = () => {
     if (fitToScreenRef.current) fitToScreenRef.current();

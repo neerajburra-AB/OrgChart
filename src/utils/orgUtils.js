@@ -2,6 +2,14 @@
 // below. Chosen to be extremely unlikely to collide with a real employee id from the sheet.
 export const UNASSIGNED_MANAGER_ID = '__unassigned_rm__';
 
+// Shared min/max zoom bounds - used by App.jsx's +/- toolbar buttons AND OrgCanvas.jsx's
+// cursor-anchored mouse-wheel zoom, so both interactions clamp to the exact same range
+// instead of two separately-hardcoded numbers drifting apart later. "Fit to Screen" is
+// deliberately its own thing and ignores these (see OrgCanvas.jsx's handleFitToScreen) -
+// its whole point is reaching scales a manual step can't.
+export const ZOOM_MIN = 0.4;
+export const ZOOM_MAX = 2.0;
+
 // Preferred display order for known seniority levels in filter/form dropdowns. A level
 // value from the data that isn't in this map (a custom one the live Sheet introduces)
 // still shows up - see getUniqueSortedValues below - just sorted after these, alphabetically.

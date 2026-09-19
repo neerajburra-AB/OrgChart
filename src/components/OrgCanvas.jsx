@@ -1,7 +1,12 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import OrgNode from './OrgNode';
 import MiniMap from './MiniMap';
-import { toIdArray } from '../utils/orgUtils';
+import { toIdArray, ZOOM_MIN, ZOOM_MAX } from '../utils/orgUtils';
+
+// Multiplicative step per wheel "notch" for cursor-anchored zoom below - ~8% per tick
+// feels smooth on both a mouse wheel (discrete notches) and a trackpad (continuous
+// deltaY), without needing separate tuning for either input type.
+const WHEEL_ZOOM_STEP = 1.08;
 
 // Unique-enough id for the arrowhead marker def - only one OrgCanvas is ever mounted at
 // a time (App.jsx's activeView switches between Tree/Focus View, never both at once),
@@ -174,6 +179,57 @@ export default function OrgCanvas({
   const handleMouseUp = () => {
     setIsDragging(false);
   };
+
+  // Mirrors the `zoom` prop into a ref, read by the wheel handler below instead of
+  // closing over `zoom` directly. This keeps the wheel listener itself stable (it never
+  // needs to be torn down/re-attached just because zoom changed one tick ago), while
+  // still always reading the latest committed value - a plain assignment during render
+  // is enough since React guarantees this line runs before the DOM (and therefore any
+  // new wheel event) is touched again.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+
+  // Mouse-wheel zoom, anchored on whatever's currently under the cursor (the same
+  // convention as Figma/Google Maps) - scroll up to zoom in, down to zoom out, and the
+  // specific card under the cursor stays under the cursor rather than the view
+  // recentering or drifting while you scroll. This has to be a NATIVE addEventListener
+  // with { passive: false }, not a React onWheel prop: React 17+ attaches wheel
+  // listeners at the root as passive by default (for scroll performance), which makes
+  // a synthetic handler's own e.preventDefault() silently do nothing (plus a console
+  // warning) - the page would keep trying to scroll underneath the zoom.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+
+      const rect = container.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const prevZoom = zoomRef.current;
+      const factor = e.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
+      const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, prevZoom * factor));
+      if (newZoom === prevZoom) return; // already at the min/max clamp - nothing to do
+
+      // .tree-viewport's transform is translate(pan) scale(zoom), so the LOCAL
+      // (unscaled) content point currently under the cursor is (cx - pan.x) / zoom.
+      // Solving for the new pan that keeps that exact point under the cursor after
+      // switching to newZoom gives this - same derivation the matrix-line overlay's
+      // toLocalCenter uses above, just rearranged to solve for pan instead of a point.
+      setPan(prevPan => ({
+        x: cx - (cx - prevPan.x) * (newZoom / prevZoom),
+        y: cy - (cy - prevPan.y) * (newZoom / prevZoom)
+      }));
+      if (onZoomChange) onZoomChange(newZoom);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+    // onZoomChange is App.jsx's setZoom, a stable useState setter - this effect runs
+    // once and never needs to re-subscribe as the user scrolls.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onZoomChange]);
 
   const handleResetPan = () => {
     if (containerRef.current) {
