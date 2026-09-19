@@ -26,6 +26,23 @@ export function getUniqueSortedValues(members, field, rankMap) {
 }
 
 /**
+ * Normalizes a matrixManagerId value into an array of ids, tolerating every shape that
+ * can actually reach this app: the current array form (from parseSheetRow's '|' split,
+ * or the Add/Edit form), a legacy bare string (pre-multi-manager data - old exports,
+ * the bundled public/data/members.json snapshot, or a custom JSON re-import someone
+ * saved a while ago), or null/undefined (no matrix manager). Used at every point that
+ * READS matrixManagerId (OrgNode.jsx's badge, OrgCanvas.jsx's dotted-line effect) rather
+ * than trusting every possible entry point (bundled JSON fallback, "Import Custom JSON")
+ * to have already normalized it - parseSheetRow and MemberModal.jsx are the only two
+ * that reliably do.
+ */
+export function toIdArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (value) return [value];
+  return [];
+}
+
+/**
  * Converts a flat array of org members into a nested tree structure
  */
 export function buildOrgTree(members, collapseState = {}) {
@@ -103,7 +120,7 @@ export function buildOrgTree(members, collapseState = {}) {
       avatar: '',
       status: 'active',
       managerId: root.id,
-      matrixManagerId: null,
+      matrixManagerId: [],
       skills: [],
       bio: 'Auto-generated group - these employees\' managerId does not match any existing employee id (typo, deleted manager, or bad import/export). Fix their managerId in the data source to place them correctly in the chart.',
       joinDate: '',

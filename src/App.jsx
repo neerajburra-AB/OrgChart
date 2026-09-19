@@ -167,7 +167,13 @@ export default function App() {
     avatar: row.avatar ?? '',
     status: row.status ?? 'active',
     managerId: row.managerId ? String(row.managerId).trim() : null,
-    matrixManagerId: row.matrixManagerId ? String(row.matrixManagerId).trim() : null,
+    // Dotted-line/matrix manager(s) - was a single id, now zero or more, same '|'-delimited
+    // convention as skills below (one Sheet column, no schema change needed). See
+    // OrgNode.jsx (card badge) and OrgCanvas.jsx (the dotted-line connector itself) for
+    // where this is actually used - both read this as an array, never a bare string.
+    matrixManagerId: row.matrixManagerId
+      ? String(row.matrixManagerId).split('|').map((s) => s.trim()).filter(Boolean)
+      : [],
     skills: row.skills
       ? String(row.skills).split('|').map((s) => s.trim()).filter(Boolean)
       : [],

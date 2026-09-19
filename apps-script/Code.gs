@@ -116,7 +116,11 @@ function handleSave(sheet, data, headers, idCol, member) {
   // ignores any payload field that doesn't have a matching header.
   const rowValues = headers.map((h) => {
     let v = member[h];
-    if (h === 'skills' && Array.isArray(v)) v = v.join('|');
+    // Both skills and matrixManagerId (the dotted-line/matrix-manager id list - see
+    // App.jsx's parseSheetRow and OrgNode.jsx/OrgCanvas.jsx for where it's read back)
+    // are arrays in the app, stored as one '|'-delimited string in their Sheet column -
+    // same convention, same join, just two different fields now.
+    if ((h === 'skills' || h === 'matrixManagerId') && Array.isArray(v)) v = v.join('|');
     if (v === null || v === undefined) return '';
     return v;
   });

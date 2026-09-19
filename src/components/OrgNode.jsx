@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronDown, MapPin, Users, AlertTriangle } from 'lucide-react';
+import { ChevronDown, MapPin, Users, AlertTriangle, GitBranch } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
-import { getDisplayLabels } from '../utils/orgUtils';
+import { getDisplayLabels, toIdArray } from '../utils/orgUtils';
 
 // First letter of up to the first two words of a name, e.g. "Elena Rostova" -> "ER".
 // Used as a network-independent avatar fallback - see the avatarFailed state below.
@@ -20,6 +20,7 @@ export default function OrgNode({
   cardMode,
   displayField = 'name',
   hideNames = false,
+  membersById,
   onSelect,
   onToggleCollapse
 }) {
@@ -42,6 +43,16 @@ export default function OrgNode({
   const hasChildren = node.children && node.children.length > 0;
   const isCompact = cardMode === 'compact';
   const isFocused = focusedNodeId === node.id;
+
+  // Dotted-line/matrix manager(s) - see MemberModal.jsx's "Also Reports To" field. This
+  // badge shows the name(s) regardless of whether that person is anywhere in the
+  // currently-rendered tree (membersById is built from the WHOLE company, not just the
+  // visible subset - see OrgCanvas.jsx), since a dashed connector line can only be drawn
+  // when both cards happen to be on screen at once (see the matrixLines effect there) -
+  // this badge is what still communicates the relationship the rest of the time.
+  const matrixManagerNames = toIdArray(node.matrixManagerId)
+    .map((id) => membersById?.get(id)?.name)
+    .filter(Boolean);
 
   // Real photo if one is set and hasn't failed to load; otherwise a local, drawn
   // initials badge - not another remote URL. The old fallback swapped to a SECOND
@@ -162,6 +173,16 @@ export default function OrgNode({
           </span>
         </div>
       </div>
+
+      {matrixManagerNames.length > 0 && (
+        <div
+          className="node-matrix-row"
+          title={`Also reports to (dotted-line): ${matrixManagerNames.join(', ')}`}
+        >
+          <GitBranch size={11} />
+          <span>Also reports to: {matrixManagerNames.join(', ')}</span>
+        </div>
+      )}
 
       {!isCompact && (
         <div className="node-footer">

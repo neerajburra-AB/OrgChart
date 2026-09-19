@@ -1,6 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import OrgNode from './OrgNode';
 import MiniMap from './MiniMap';
+import { toIdArray } from '../utils/orgUtils';
+
+// Unique-enough id for the arrowhead marker def - only one OrgCanvas is ever mounted at
+// a time (App.jsx's activeView switches between Tree/Focus View, never both at once),
+// so a plain static id is fine; still namespaced to avoid ever colliding with anything
+// else that defines SVG markers on the page.
+const MATRIX_ARROW_MARKER_ID = 'orgpulse-matrix-line-arrowhead';
 
 export default function OrgCanvas({
   treeRoot,
@@ -28,6 +35,80 @@ export default function OrgCanvas({
 
   const hasInitializedRef = useRef(false);
   const prevLayoutModeRef = useRef(layoutMode);
+
+  // Full id -> member lookup, built from allMembers - the WHOLE company, not just
+  // whatever subset is in the currently-rendered tree (Focus View's `allMembers` is
+  // still the full list - see FocusView.jsx). Needed so a dotted-line/matrix-manager
+  // badge can show a real name even when that manager isn't the current tree/subtree at
+  // all (see OrgNode.jsx's matrix badge, and the line-drawing effect below).
+  const membersById = useMemo(
+    () => new Map((allMembers || []).map((m) => [m.id, m])),
+    [allMembers]
+  );
+
+  // Dotted-line connectors for matrix-manager relationships (see MemberModal.jsx's
+  // "Also Reports To" field). Recomputed by directly measuring the two cards' actual
+  // DOM positions rather than tracked through the layout algorithm itself - the tree
+  // layout (WaterfallTreeGroup/ClassicTreeNodeGroup below) has no concept of "some other,
+  // unrelated node elsewhere in the tree" at all, so teaching it one would mean threading
+  // a second, cross-cutting layout concern through every recursive call. Measuring after
+  // the fact is simpler and, since it only draws a line when BOTH endpoints are already
+  // on screen, it's never wrong - it just doesn't draw anything for a pair where one side
+  // is currently collapsed away (the card badge covers that case instead, see OrgNode.jsx).
+  const [matrixLines, setMatrixLines] = useState([]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) { setMatrixLines([]); return; }
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const scale = zoom || 1;
+
+    // Converts a card's on-screen rect into the SAME local, unscaled coordinate space
+    // as every other child of .tree-viewport - dividing by the current zoom undoes the
+    // scale() half of `.tree-viewport`'s transform, and subtracting viewportRect cancels
+    // out translate()/pan (both sides of the subtraction shift together). The resulting
+    // point is what an SVG that's ALSO a child of .tree-viewport should use as its own
+    // coordinate, so the browser's own transform inheritance keeps the line visually
+    // aligned automatically - no need to recompute this on every pan/zoom change, only
+    // when the rendered tree itself changes (see the dependency array below).
+    const toLocalCenter = (rect) => ({
+      x: (rect.left - viewportRect.left) / scale + rect.width / (2 * scale),
+      y: (rect.top - viewportRect.top) / scale + rect.height / (2 * scale)
+    });
+
+    const lines = [];
+    const seenPairs = new Set();
+
+    membersById.forEach((member) => {
+      const matrixIds = toIdArray(member.matrixManagerId);
+      if (matrixIds.length === 0) return;
+
+      const fromEl = viewport.querySelector(`[data-node-id="${member.id}"]`);
+      if (!fromEl) return; // this employee isn't currently rendered (collapsed elsewhere)
+
+      matrixIds.forEach((managerId) => {
+        if (!managerId || managerId === member.id) return;
+        const toEl = viewport.querySelector(`[data-node-id="${managerId}"]`);
+        if (!toEl) return; // matrix manager not currently on screen - nothing to connect to
+
+        const pairKey = [member.id, managerId].sort().join('::');
+        if (seenPairs.has(pairKey)) return;
+        seenPairs.add(pairKey);
+
+        const p1 = toLocalCenter(fromEl.getBoundingClientRect());
+        const p2 = toLocalCenter(toEl.getBoundingClientRect());
+        lines.push({ key: pairKey, x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+      });
+    });
+
+    setMatrixLines(lines);
+    // zoom/pan deliberately excluded - see toLocalCenter's division by scale above, which
+    // makes these local coordinates invariant to both. treeRoot changes whenever the
+    // rendered set of cards could change (expand/collapse, switching Focus employee,
+    // search force-expand, a data reload).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeRoot, membersById]);
 
   // Center tree on initial load or layout mode change
   useEffect(() => {
@@ -177,6 +258,44 @@ export default function OrgCanvas({
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
         }}
       >
+        {/* Dotted-line connectors for matrix-manager relationships - rendered as the
+            FIRST child so normal DOM stacking paints the actual tree cards on top of it
+            (a line passing "under" a card should disappear behind it, not draw over its
+            text). Sized to exactly cover .tree-viewport's own natural (unscaled) content
+            box, which is why it inherits the same transform as everything else in here
+            and needs no zoom/pan math of its own - see the matrixLines effect above. */}
+        {matrixLines.length > 0 && (
+          <svg className="matrix-lines-overlay" style={{ pointerEvents: 'none' }}>
+            <defs>
+              <marker
+                id={MATRIX_ARROW_MARKER_ID}
+                viewBox="0 0 10 10"
+                refX="8"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,0 L10,5 L0,10 z" fill="#ec4899" />
+              </marker>
+            </defs>
+            {matrixLines.map((line) => (
+              <line
+                key={line.key}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="#ec4899"
+                strokeWidth={1.75}
+                strokeDasharray="6 5"
+                strokeOpacity={0.75}
+                markerEnd={`url(#${MATRIX_ARROW_MARKER_ID})`}
+              />
+            ))}
+          </svg>
+        )}
+
         {/* Waterfall or Classic Spanning Tree layout */}
         {layoutMode === 'waterfall' ? (
           <WaterfallTreeGroup
@@ -184,6 +303,7 @@ export default function OrgCanvas({
             cardMode={cardMode}
             displayField={displayField}
             hideNames={hideNames}
+            membersById={membersById}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
             searchPathIds={searchPathIds}
@@ -198,6 +318,7 @@ export default function OrgCanvas({
             cardMode={cardMode}
             displayField={displayField}
             hideNames={hideNames}
+            membersById={membersById}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
             searchPathIds={searchPathIds}
@@ -371,6 +492,7 @@ function WaterfallTreeGroup({
   cardMode,
   displayField,
   hideNames,
+  membersById,
   selectedId,
   searchMatchIds,
   searchPathIds,
@@ -403,6 +525,7 @@ function WaterfallTreeGroup({
           cardMode={cardMode}
           displayField={displayField}
           hideNames={hideNames}
+          membersById={membersById}
           onSelect={onSelect}
           onToggleCollapse={onToggleCollapse}
         />
@@ -417,6 +540,7 @@ function WaterfallTreeGroup({
                 cardMode={cardMode}
                 displayField={displayField}
                 hideNames={hideNames}
+                membersById={membersById}
                 selectedId={selectedId}
                 searchMatchIds={searchMatchIds}
                 searchPathIds={searchPathIds}
@@ -442,6 +566,7 @@ function WaterfallTreeGroup({
         cardMode={cardMode}
         displayField={displayField}
         hideNames={hideNames}
+        membersById={membersById}
         onSelect={onSelect}
         onToggleCollapse={onToggleCollapse}
       />
@@ -458,6 +583,7 @@ function WaterfallTreeGroup({
               cardMode={cardMode}
               displayField={displayField}
               hideNames={hideNames}
+              membersById={membersById}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
               searchPathIds={searchPathIds}
@@ -478,6 +604,7 @@ function ClassicTreeNodeGroup({
   cardMode,
   displayField,
   hideNames,
+  membersById,
   selectedId,
   searchMatchIds,
   searchPathIds,
@@ -504,6 +631,7 @@ function ClassicTreeNodeGroup({
         cardMode={cardMode}
         displayField={displayField}
         hideNames={hideNames}
+        membersById={membersById}
         onSelect={onSelect}
         onToggleCollapse={onToggleCollapse}
       />
@@ -520,6 +648,7 @@ function ClassicTreeNodeGroup({
               cardMode={cardMode}
               displayField={displayField}
               hideNames={hideNames}
+              membersById={membersById}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
               searchPathIds={searchPathIds}

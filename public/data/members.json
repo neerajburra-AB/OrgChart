@@ -10,7 +10,7 @@
     "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": null,
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Visionary Strategy",
       "Enterprise Growth",
@@ -32,7 +32,7 @@
     "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-1",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Distributed Systems",
       "Cloud Architecture",
@@ -54,7 +54,7 @@
     "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-1",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Product Strategy",
       "User Growth",
@@ -76,7 +76,7 @@
     "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-1",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Enterprise B2B",
       "Global Sales Ops",
@@ -98,7 +98,7 @@
     "avatar": "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-1",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Talent Acquisition",
       "Culture & DEI",
@@ -120,7 +120,7 @@
     "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-2",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "DevOps",
       "Microservices",
@@ -142,7 +142,9 @@
     "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-2",
-    "matrixManagerId": "emp-3",
+    "matrixManagerId": [
+      "emp-3"
+    ],
     "skills": [
       "Large Language Models",
       "PyTorch",
@@ -164,7 +166,7 @@
     "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-6",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Kubernetes",
       "AWS/GCP",
@@ -186,7 +188,9 @@
     "avatar": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-6",
-    "matrixManagerId": "emp-13",
+    "matrixManagerId": [
+      "emp-13"
+    ],
     "skills": [
       "React",
       "TypeScript",
@@ -208,7 +212,7 @@
     "avatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-9",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Canvas / WebGL",
       "State Management",
@@ -230,7 +234,7 @@
     "avatar": "https://images.unsplash.com/photo-1534751516642-a171e2614908?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-9",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "CSS Animations",
       "React Component Libraries",
@@ -251,7 +255,7 @@
     "avatar": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-8",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "CI/CD Pipelines",
       "Docker",
@@ -273,7 +277,7 @@
     "avatar": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-3",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "UX Architecture",
       "Design Systems",
@@ -295,7 +299,7 @@
     "avatar": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-3",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Core Product",
       "B2B Enterprise",
@@ -317,7 +321,9 @@
     "avatar": "https://images.unsplash.com/photo-1548142813-c348350df52b?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-13",
-    "matrixManagerId": "emp-17",
+    "matrixManagerId": [
+      "emp-17"
+    ],
     "skills": [
       "Figma Master",
       "Interactive Prototypes",
@@ -339,7 +345,7 @@
     "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-13",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Qualitative Interviews",
       "Usability Audits",
@@ -360,7 +366,7 @@
     "avatar": "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-14",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "SQL",
       "Mixpanel",
@@ -382,7 +388,7 @@
     "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-4",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "EMEA Expansion",
       "Fortune 500 Deals",
@@ -404,7 +410,7 @@
     "avatar": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-4",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Salesforce",
       "HubSpot",
@@ -426,7 +432,7 @@
     "avatar": "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-18",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Strategic Accounts",
       "SaaS Licensing",
@@ -447,7 +453,7 @@
     "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-18",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Bilingual Sales",
       "Contract Management",
@@ -468,7 +474,7 @@
     "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-5",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Executive Search",
       "Technical Recruiting",
@@ -489,7 +495,7 @@
     "avatar": "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     "status": "on-leave",
     "managerId": "emp-5",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Employee Relations",
       "Performance Mgmt",
@@ -510,7 +516,7 @@
     "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-1",
-    "matrixManagerId": null,
+    "matrixManagerId": [],
     "skills": [
       "Brand Identity",
       "Growth Marketing",
@@ -532,7 +538,9 @@
     "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
     "status": "active",
     "managerId": "emp-24",
-    "matrixManagerId": "emp-4",
+    "matrixManagerId": [
+      "emp-4"
+    ],
     "skills": [
       "SEO / SEM",
       "Paid Acquisition",

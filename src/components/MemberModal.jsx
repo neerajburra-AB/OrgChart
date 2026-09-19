@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, Edit3, Sparkles } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
-import { isDescendant, getUniqueSortedValues, LEVEL_RANK } from '../utils/orgUtils';
+import { isDescendant, getUniqueSortedValues, LEVEL_RANK, toIdArray } from '../utils/orgUtils';
 
 import ManagerPicker from './ManagerPicker';
+import MultiManagerPicker from './MultiManagerPicker';
 
 export default function MemberModal({
   isOpen,
@@ -22,6 +23,7 @@ export default function MemberModal({
     projects: '',
     level: '',
     managerId: presetManagerId || (allMembers[0]?.id || ''),
+    matrixManagerId: [],
     email: '',
     phone: '',
     location: '',
@@ -61,7 +63,11 @@ export default function MemberModal({
     if (mode === 'edit' && initialData) {
       setFormData({
         ...initialData,
-        skills: Array.isArray(initialData.skills) ? initialData.skills.join(', ') : (initialData.skills || '')
+        skills: Array.isArray(initialData.skills) ? initialData.skills.join(', ') : (initialData.skills || ''),
+        // Tolerate a legacy single-string value here too (pre-multi-manager data), not
+        // just the array shape parseSheetRow now always produces - so an old bundled
+        // members.json or a stale localStorage save can't crash this form.
+        matrixManagerId: toIdArray(initialData.matrixManagerId)
       });
     } else if (mode === 'add') {
       setFormData({
@@ -76,6 +82,7 @@ export default function MemberModal({
         projects: '',
         level: availableLevels[0] || '',
         managerId: presetManagerId || (allMembers[0]?.id || ''),
+        matrixManagerId: [],
         email: '',
         phone: '',
         location: '',
@@ -271,6 +278,22 @@ export default function MemberModal({
                 members={validManagers}
                 value={formData.managerId}
                 onChange={(managerId) => setFormData({ ...formData, managerId })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Also Reports To (Dotted-line)</label>
+              {/* Zero or more secondary/matrix managers, shown on the chart as a dashed
+                  connector (drawn only when both cards are on screen at once) plus a
+                  small badge on the card either way - see OrgCanvas.jsx and OrgNode.jsx.
+                  Unlike "Reports To" above, this never touches the real tree structure,
+                  so anyone else in the company is a valid pick, including someone who
+                  reports to this person. */}
+              <MultiManagerPicker
+                members={allMembers}
+                value={formData.matrixManagerId}
+                excludeId={mode === 'edit' ? initialData?.id : null}
+                onChange={(ids) => setFormData({ ...formData, matrixManagerId: ids })}
               />
             </div>
 
