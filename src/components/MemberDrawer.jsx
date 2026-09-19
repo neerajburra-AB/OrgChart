@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  UserPlus, 
-  Edit, 
-  UserCheck, 
-  Trash2, 
-  Briefcase, 
+import {
+  X,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  UserPlus,
+  Edit,
+  UserCheck,
+  Trash2,
+  Briefcase,
   ChevronRight,
   Shield,
   Layers,
-  CornerDownRight
+  CornerDownRight,
+  ArrowRightLeft
 } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
 
@@ -24,7 +25,8 @@ export default function MemberDrawer({
   onOpenEditModal,
   onOpenAddModal,
   onDeleteMember,
-  onSelectMember
+  onSelectMember,
+  onOpenReassignModal
 }) {
   if (!member) return null;
 
@@ -200,8 +202,24 @@ export default function MemberDrawer({
 
           {/* Direct Reports List */}
           <div className="drawer-section">
-            <div className="drawer-section-title">
-              Direct Reports ({directReports.length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+              <div className="drawer-section-title" style={{ marginBottom: 0 }}>
+                Direct Reports ({directReports.length})
+              </div>
+              {/* Bulk-move everyone below this person to a new manager in one go -
+                  e.g. this person is leaving and someone else is taking over their
+                  team - instead of opening each report's Edit form one at a time.
+                  See ReassignManagerModal.jsx for the actual picker/confirm flow. */}
+              {directReports.length > 0 && (
+                <button
+                  className="icon-btn"
+                  title="Reassign all direct reports to a different manager"
+                  onClick={() => onOpenReassignModal(member)}
+                  style={{ flexShrink: 0 }}
+                >
+                  <ArrowRightLeft size={15} />
+                </button>
+              )}
             </div>
             {directReports.length === 0 ? (
               <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>

@@ -7,6 +7,7 @@ import AnalyticsView from './components/AnalyticsView';
 import FocusView from './components/FocusView';
 import MemberDrawer from './components/MemberDrawer';
 import MemberModal from './components/MemberModal';
+import ReassignManagerModal from './components/ReassignManagerModal';
 import ImportExportModal from './components/ImportExportModal';
 import OrgChartWorkspace from './components/OrgChartWorkspace';
 
@@ -352,6 +353,11 @@ export default function App() {
   // Import / Export Modal State
   const [importExportModalOpen, setImportExportModalOpen] = useState(false);
 
+  // Reassign Manager Modal State - the "B left, C takes over the team" bulk-move
+  // flow (see ReassignManagerModal.jsx and handleReassignReports below). Holds the
+  // member (B) whose direct reports are being moved, or null when closed.
+  const [reassignTarget, setReassignTarget] = useState(null);
+
   // Filter dropdown options, built from the ACTUAL loaded data rather than a hardcoded
   // list. The old dropdowns only offered the 8 department keys and 6 level values baked
   // into the demo dataset - selecting a filter did nothing useful once the live Sheet
@@ -653,6 +659,38 @@ export default function App() {
     }
   };
 
+  // Bulk-moves a chosen set of employees (a manager's direct reports, picked in
+  // ReassignManagerModal.jsx) onto a new managerId in one action, instead of the
+  // user opening each report's Edit form individually. Reuses the exact same
+  // per-row, best-effort writeToSheet('save') pattern handleSaveMember's own
+  // inactive-manager reassignment above already uses, for the same reason: one
+  // failed row partway through should only leave THAT row on its old (still valid)
+  // manager, not roll back or block the rows that already succeeded. The manager
+  // being reassigned FROM (B) is never written to here - only the reports moving
+  // away from them - so B's own record, history and employee ID stay exactly as
+  // they were.
+  const handleReassignReports = async (newManagerId, reportsToMove) => {
+    const failed = [];
+    for (const report of reportsToMove) {
+      const updated = { ...report, managerId: newManagerId };
+      const ok = await writeToSheet({ action: 'save', member: updated });
+      if (ok) {
+        setMembers(prev => prev.map(m => (m.id === updated.id ? updated : m)));
+      } else {
+        failed.push(report.name);
+      }
+    }
+
+    if (failed.length > 0) {
+      window.alert(
+        `${reportsToMove.length - failed.length} of ${reportsToMove.length} employee(s) were reassigned. ` +
+        `These failed and still need to be updated manually: ${failed.join(', ')}.`
+      );
+    }
+
+    setReassignTarget(null);
+  };
+
   const handleResetToDemo = () => {
     setMembers(INITIAL_MEMBERS);
     localStorage.removeItem(STORAGE_KEY);
@@ -774,6 +812,18 @@ export default function App() {
           onOpenEditModal={(member) => setModalState({ isOpen: true, mode: 'edit', initialData: member, presetManagerId: null })}
           onOpenAddModal={(managerId) => setModalState({ isOpen: true, mode: 'add', initialData: null, presetManagerId: managerId })}
           onDeleteMember={handleDeleteMember}
+          onOpenReassignModal={(m) => setReassignTarget(m)}
+        />
+      )}
+
+      {/* Reassign Manager Modal - bulk-move a manager's direct reports onto someone
+          else in one action (see ReassignManagerModal.jsx / handleReassignReports) */}
+      {reassignTarget && (
+        <ReassignManagerModal
+          member={reassignTarget}
+          allMembers={members}
+          onClose={() => setReassignTarget(null)}
+          onConfirm={handleReassignReports}
         />
       )}
 
