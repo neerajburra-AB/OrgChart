@@ -14,9 +14,11 @@ import {
   Shield,
   Layers,
   CornerDownRight,
-  ArrowRightLeft
+  ArrowRightLeft,
+  GitBranch
 } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
+import { toIdArray } from '../utils/orgUtils';
 
 export default function MemberDrawer({
   member,
@@ -38,6 +40,16 @@ export default function MemberDrawer({
 
   const manager = allMembers.find(m => m.id === member.managerId);
   const directReports = allMembers.filter(m => m.managerId === member.id);
+
+  // Everyone who lists THIS person as a dotted-line/matrix manager (see MemberModal.jsx's
+  // "Also Reports To" field) - the reverse direction of that field, so it has to be found
+  // by scanning, not read off member.* directly. Shown as its own list here rather than
+  // nested into the Tree/Focus canvas itself: matrixManagerId has no cycle/descendant
+  // restriction at all (anyone can pick anyone), so actually nesting a dotted report's own
+  // subtree under every dotted manager they have would risk duplicating large branches
+  // repeatedly (or worse, an literal render loop if two people ever cross-list each other)
+  // for very little real benefit over just listing them here - confirmed with the user.
+  const dottedReports = allMembers.filter(m => toIdArray(m.matrixManagerId).includes(member.id));
 
   return (
     <>
@@ -248,6 +260,39 @@ export default function MemberDrawer({
               </div>
             )}
           </div>
+
+          {/* Dotted-Line Reports - people who list THIS person as a matrix manager. Only
+              shown when at least one exists (most employees have none), same pattern as
+              Bio/Skills above - unlike Direct Reports, this isn't a universal field every
+              card has something to say about. */}
+          {dottedReports.length > 0 && (
+            <div className="drawer-section">
+              <div className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <GitBranch size={13} />
+                <span>Dotted-Line Reports ({dottedReports.length})</span>
+              </div>
+              <div className="direct-reports-list">
+                {dottedReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="report-item"
+                    onClick={() => onSelectMember(report)}
+                  >
+                    <img
+                      src={report.avatar}
+                      alt={report.name}
+                      style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{report.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{report.title}</div>
+                    </div>
+                    <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Danger Zone / Delete Button */}
           {manager && (
