@@ -807,6 +807,8 @@ export default function App() {
               hideNames={hideNames}
               cardMode={cardMode}
               setCardMode={setCardMode}
+              selectedMember={selectedMember}
+              onSelectMember={(member) => setSelectedMember(member)}
             />
           )}
 
@@ -834,7 +836,22 @@ export default function App() {
           member={selectedMember}
           allMembers={members}
           onClose={() => setSelectedMember(null)}
-          onSelectMember={(member) => handleSelectSearchResult(member)}
+          onSelectMember={(member) => {
+            // Clicking a Direct Report/Dotted-Line Report row inside the drawer normally
+            // jumps to that person on the main Tree (handleSelectSearchResult switches
+            // activeView to 'tree') - but this drawer is a global overlay shared by every
+            // view (see its render condition above, gated only on selectedMember, not
+            // activeView). From Focus View that would yank the user out to a completely
+            // different page just for clicking a name inside a drawer they opened while
+            // browsing a subtree - so from there, just swap which member the SAME drawer
+            // shows and let Focus View's own canvas react (it'll jump to them if they're
+            // part of the current subtree, same as any other badge/list click there).
+            if (activeView === 'focus') {
+              setSelectedMember(member);
+            } else {
+              handleSelectSearchResult(member);
+            }
+          }}
           onOpenEditModal={(member) => setModalState({ isOpen: true, mode: 'edit', initialData: member, presetManagerId: null })}
           onOpenAddModal={(managerId) => setModalState({ isOpen: true, mode: 'add', initialData: null, presetManagerId: managerId })}
           onDeleteMember={handleDeleteMember}

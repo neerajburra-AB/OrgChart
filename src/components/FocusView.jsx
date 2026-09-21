@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Crosshair,
   RotateCcw,
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import ManagerPicker from './ManagerPicker';
 import OrgCanvas from './OrgCanvas';
-import { buildFocusTree, computeCollapseStateFromRoot } from '../utils/orgUtils';
+import { buildFocusTree, computeCollapseStateFromRoot, getAncestorIds } from '../utils/orgUtils';
 import { exportOrgChartToPpt } from '../utils/exportPpt';
 import { downloadSmartArtOutline, SMARTART_PRACTICAL_LIMIT } from '../utils/exportSmartArtOutline';
 import { downloadSmartArtMacroData } from '../utils/exportSmartArtMacroData';
@@ -34,11 +34,11 @@ const FOCUS_AUTO_EXPAND_DEPTH = 1;
 // fit-to-screen all come for free), and ManagerPicker (already built as a
 // searchable, capped-results employee lookup for the "Reports To" field) for
 // choosing the starting employee - not new UI, less to get wrong twice.
-export default function FocusView({ members, displayField, hideNames, cardMode, setCardMode }) {
+export default function FocusView({ members, displayField, hideNames, cardMode, setCardMode, selectedMember, onSelectMember }) {
   const [focusRootId, setFocusRootId] = useState(null);
   const [collapseState, setCollapseState] = useState({});
   const [zoom, setZoom] = useState(1);
-  const [selectedMember, setSelectedMember] = useState(null);
+  const [focusedNodeId, setFocusedNodeId] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   const fitToScreenRef = useRef(null);
 
@@ -47,11 +47,42 @@ export default function FocusView({ members, displayField, hideNames, cardMode, 
     return buildFocusTree(members, focusRootId, collapseState);
   }, [members, focusRootId, collapseState]);
 
+  // If the person currently focused on gets deleted (reachable now that the drawer's
+  // full Edit/Delete/Reassign toolset works from in here too - see onSelectMember below),
+  // buildFocusTree quietly returns a null root rather than throwing - fall back to the
+  // picker screen automatically instead of leaving an empty, unexplained canvas.
+  useEffect(() => {
+    if (focusRootId && !members.some((m) => m.id === focusRootId)) {
+      setFocusRootId(null);
+    }
+  }, [members, focusRootId]);
+
   const handleChooseRoot = (memberId) => {
     setFocusRootId(memberId);
-    setSelectedMember(null);
+    onSelectMember(null);
     setZoom(1);
     setCollapseState(memberId ? computeCollapseStateFromRoot(members, memberId, FOCUS_AUTO_EXPAND_DEPTH) : {});
+  };
+
+  // Click-to-jump for the dotted-line/matrix-manager badge popovers (see OrgNode.jsx) -
+  // mirrors App.jsx's own handleJumpToMember, but scoped to THIS page's own subtree and
+  // its own local collapseState, not the main Tree's. A badge here can still point to
+  // someone entirely outside the current focus subtree (badges are built from the whole
+  // company's allMembers, same as the main Tree - see OrgCanvas.jsx), and there's no
+  // sensible "jump" for that case since that person isn't part of this page at all - so
+  // this only acts when the target is actually part of the current subtree.
+  const handleJumpToMember = (memberId) => {
+    if (!memberMap.has(memberId)) return;
+
+    const ancestors = getAncestorIds(memberId, memberMap);
+    setCollapseState((prev) => {
+      const next = { ...prev };
+      ancestors.forEach((aId) => { delete next[aId]; });
+      return next;
+    });
+
+    setFocusedNodeId(memberId);
+    setTimeout(() => setFocusedNodeId(null), 2500);
   };
 
   const handleToggleCollapse = (nodeId) => {
@@ -230,14 +261,28 @@ export default function FocusView({ members, displayField, hideNames, cardMode, 
           selectedMember={selectedMember}
           searchMatches={null}
           searchPathIds={null}
-          focusedNodeId={null}
+          focusedNodeId={focusedNodeId}
           zoom={zoom}
           layoutMode="waterfall"
           cardMode={cardMode}
           displayField={displayField}
           hideNames={hideNames}
-          onSelectMember={setSelectedMember}
+          onSelectMember={(node) => {
+            // buildFocusTree clones the current focus ROOT specifically as
+            // { ...rootMember, managerId: null } so it renders with no parent stem
+            // within this local subtree (see orgUtils.js). But that clone is exactly
+            // what reaches here when the root's own card is clicked - and passing it
+            // straight to the drawer made MemberDrawer.jsx think this real employee
+            // has no manager at all, which incorrectly hid the Delete button (and
+            // would misreport "Reports To") purely because they happen to be this
+            // page's root right now. Swap in the real record from the full company
+            // list so the drawer sees this person exactly as it would from the main
+            // Tree. Safe: MemberDrawer doesn't read any tree-only augmented fields
+            // (children/directReportsCount/isCollapsed/totalSubtreeCount) - verified.
+            onSelectMember(members.find((m) => m.id === node.id) || node);
+          }}
           onToggleCollapse={handleToggleCollapse}
+          onJumpToMember={handleJumpToMember}
           onZoomChange={setZoom}
           onRegisterFitToScreen={(fn) => { fitToScreenRef.current = fn; }}
         />
