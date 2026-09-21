@@ -50,6 +50,31 @@ export function toIdArray(value) {
   return [];
 }
 
+// Sort key for one member's `level` field, used below to order tree siblings by
+// seniority/grade instead of whatever order they happen to sit in on the sheet. Falls
+// through three tiers so mismatched data never scrambles the recognized part of the
+// ordering: (0) a name already in LEVEL_RANK above (C-Level/VP/Director/...) sorts by
+// that known seniority rank; (1) a level with a number in it - "L1"/"L2"/"L3", "Level 4",
+// "Grade 04" - the format a real HR/SAP sheet is far more likely to actually use - sorts
+// by that number, so "L1" comes before "L2" before "L10" (a plain alphabetical sort would
+// wrongly put "L10" before "L2"); (2) blank or genuinely unrecognized text sorts last,
+// so a data gap can't displace the levels that ARE recognized.
+function levelSortKey(level) {
+  if (level === null || level === undefined || level === '') return [2, 0, ''];
+  if (level in LEVEL_RANK) return [0, LEVEL_RANK[level], level];
+  const match = String(level).match(/(\d+)/);
+  if (match) return [1, Number(match[1]), level];
+  return [2, 0, String(level)];
+}
+
+function compareByLevel(a, b) {
+  const [tierA, numA, rawA] = levelSortKey(a.level);
+  const [tierB, numB, rawB] = levelSortKey(b.level);
+  if (tierA !== tierB) return tierA - tierB;
+  if (numA !== numB) return numA - numB;
+  return rawA.localeCompare(rawB);
+}
+
 /**
  * Converts a flat array of org members into a nested tree structure
  */
@@ -151,6 +176,23 @@ export function buildOrgTree(members, collapseState = {}) {
       );
     }
   }
+
+  // Sort every manager's direct reports by level/grade (see compareByLevel above) rather
+  // than leaving them in whatever order they happen to sit in on the sheet - e.g. a
+  // manager with 10 reports across L1/L2/L3 now always shows all the L1s, then all the
+  // L2s, then all the L3s, regardless of the raw data's row order. Applied once here, to
+  // every node's children (including the "To Be Confirmed / Unknown RM" synthetic group's
+  // orphans, for the same consistent reason), so it's a single source of truth that Tree,
+  // Focus View and the PPT export (buildCascadingSlideSpecs) all inherit automatically -
+  // none of them build their own ordering, they just walk node.children as buildOrgTree
+  // left it. Ties (same level, or both unrecognized) keep their original relative order,
+  // since Array.prototype.sort is a stable sort - nothing is reshuffled beyond what's
+  // actually needed to group levels together.
+  memberMap.forEach(node => {
+    if (node.children.length > 1) {
+      node.children.sort(compareByLevel);
+    }
+  });
 
   // Calculate subtree sizes recursively. Guarded against cyclic managerId data (e.g. a
   // row whose managerId - directly or a few hops up - points back to itself) so a bad
