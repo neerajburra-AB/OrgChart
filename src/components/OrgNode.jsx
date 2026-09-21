@@ -21,8 +21,10 @@ export default function OrgNode({
   displayField = 'name',
   hideNames = false,
   membersById,
+  dottedReportsByManagerId,
   onSelect,
-  onToggleCollapse
+  onToggleCollapse,
+  onJumpToMember
 }) {
   // See getDisplayLabels in orgUtils.js for the shared rule (also used by the PPT
   // export) - primary is whatever field "Display by" picked (Name by default), falling
@@ -67,10 +69,36 @@ export default function OrgNode({
   // currently-rendered tree (membersById is built from the WHOLE company, not just the
   // visible subset - see OrgCanvas.jsx), since a dashed connector line can only be drawn
   // when both cards happen to be on screen at once (see the matrixLines effect there) -
-  // this badge is what still communicates the relationship the rest of the time.
-  const matrixManagerNames = toIdArray(node.matrixManagerId)
-    .map((id) => membersById?.get(id)?.name)
+  // this badge is what still communicates the relationship the rest of the time. Kept as
+  // full {id, name} entries, not just names, so the popover below can jump to any of them
+  // even when they're an arbitrary distance away in the tree.
+  const matrixManagerEntries = toIdArray(node.matrixManagerId)
+    .map((id) => membersById?.get(id))
     .filter(Boolean);
+  const matrixManagerNames = matrixManagerEntries.map((m) => m.name);
+
+  // The REVERSE direction of the same relationship - people who list THIS node as
+  // one of THEIR dotted managers. Without this, the only visual sign that someone is
+  // a dotted-line manager for anyone was the dashed connector line itself, which only
+  // ever appears when both cards happen to be rendered on screen at the same time -
+  // if the report's branch is collapsed elsewhere, this card gave no hint at all.
+  const dottedManagerReports = dottedReportsByManagerId?.get(node.id) || [];
+  const dottedManagerForNames = dottedManagerReports.map((m) => m.name);
+
+  // Which of the two badge popovers ("Also reports to" / "Dotted-line manager for N") is
+  // currently open, if any - a manager+reportee pair can be an arbitrary distance apart on
+  // the canvas (the whole reason this exists - see the "long gap/distance" feature this
+  // popover was built for), so rather than trying to draw a line across a potentially huge
+  // span, clicking the badge opens a small list of the actual name(s), and clicking a name
+  // jumps the camera straight to that person's card (via onJumpToMember - auto-expands any
+  // collapsed branch in the way and pulses the target, see handleJumpToMember in App.jsx).
+  const [openPopover, setOpenPopover] = useState(null); // 'outgoing' | 'incoming' | null
+
+  const handleJumpClick = (e, memberId) => {
+    e.stopPropagation();
+    setOpenPopover(null);
+    onJumpToMember?.(memberId);
+  };
 
   // Real photo if one is set and hasn't failed to load; otherwise a local, drawn
   // initials badge - not another remote URL. The old fallback swapped to a SECOND
@@ -127,7 +155,7 @@ export default function OrgNode({
     <div
       data-node-id={node.id}
       data-department={node.department}
-      className={`org-node-card ${isCompact ? 'compact' : ''} ${isSelected ? 'selected' : ''} ${isSearchMatch ? 'search-match' : ''} ${isFocused ? 'focused-pulse' : ''} ${isDimmed ? 'dimmed' : ''}`}
+      className={`org-node-card ${isCompact ? 'compact' : ''} ${isSelected ? 'selected' : ''} ${isSearchMatch ? 'search-match' : ''} ${isFocused ? 'focused-pulse' : ''} ${isDimmed ? 'dimmed' : ''} ${openPopover ? 'has-open-popover' : ''}`}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(node);
@@ -193,13 +221,61 @@ export default function OrgNode({
         </div>
       </div>
 
+      {/* Invisible full-canvas click-catcher, only mounted while a popover is open - lets
+          clicking anywhere else close it, same pattern as the member drawer's own backdrop,
+          just without darkening the screen since this is a much smaller, transient popover. */}
+      {openPopover && (
+        <div
+          className="node-badge-popover-backdrop"
+          onClick={(e) => { e.stopPropagation(); setOpenPopover(null); }}
+        />
+      )}
+
       {matrixManagerNames.length > 0 && (
         <div
-          className="node-matrix-row"
-          title={`Also reports to (dotted-line): ${matrixManagerNames.join(', ')}`}
+          className="node-matrix-row node-badge-row-clickable"
+          title={`Also reports to (dotted-line): ${matrixManagerNames.join(', ')} - click to jump to any of them`}
+          onClick={(e) => { e.stopPropagation(); setOpenPopover((prev) => (prev === 'outgoing' ? null : 'outgoing')); }}
         >
           <GitBranch size={11} />
           <span>Also reports to: {matrixManagerNames.join(', ')}</span>
+
+          {openPopover === 'outgoing' && (
+            <div className="node-badge-popover" onClick={(e) => e.stopPropagation()}>
+              {matrixManagerEntries.map((m) => (
+                <div key={m.id} className="node-badge-popover-item" onClick={(e) => handleJumpClick(e, m.id)}>
+                  {m.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reciprocal direction of the badge above - this person IS a dotted manager
+          for someone else. Visually distinguished (violet, not pink) so the two
+          directions never read as the same relationship at a glance. */}
+      {dottedManagerForNames.length > 0 && (
+        <div
+          className="node-dotted-manager-row node-badge-row-clickable"
+          title={`Dotted-line manager for: ${dottedManagerForNames.join(', ')} - click to jump to any of them`}
+          onClick={(e) => { e.stopPropagation(); setOpenPopover((prev) => (prev === 'incoming' ? null : 'incoming')); }}
+        >
+          <GitBranch size={11} style={{ transform: 'scaleX(-1)' }} />
+          <span>
+            Dotted-line manager for {dottedManagerForNames.length}{' '}
+            {dottedManagerForNames.length === 1 ? 'person' : 'people'}
+          </span>
+
+          {openPopover === 'incoming' && (
+            <div className="node-badge-popover" onClick={(e) => e.stopPropagation()}>
+              {dottedManagerReports.map((m) => (
+                <div key={m.id} className="node-badge-popover-item" onClick={(e) => handleJumpClick(e, m.id)}>
+                  {m.name}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

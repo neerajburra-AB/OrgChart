@@ -767,6 +767,21 @@ body {
   background: var(--bg-card-hover);
 }
 
+/* Real bug caught during Playwright verification of the badge-popover click-to-jump
+   feature, not just a test artifact: the popover is rendered as a DOM child of this card
+   (so it can be positioned relative to the badge row inside it), so hovering INTO the
+   popover to click one of its names still counts as hovering this card - which triggers
+   the lift-and-scale hover transform above on the card itself mid-click. That shifts the
+   whole card (popover included) out from under the cursor between "mouse moves onto the
+   item" and "click fires", so the click can land on the card underneath instead of the
+   intended popover item. Neutralizing the hover transform while this card's own popover
+   is open removes the shift entirely. Declared after .selected:hover/.search-match:hover
+   on purpose, so it wins the tie if a card is ever both selected/matched AND has an open
+   popover at the same time. */
+.org-node-card.has-open-popover:hover {
+  transform: none;
+}
+
 /* Applied while a search/filter is active, to every rendered card that is neither a
    match nor on the ancestor path leading to one (typically siblings that are only
    visible because their parent had to open to reveal the path). Nothing is hidden -
@@ -949,7 +964,11 @@ body {
   font-size: 10.5px;
   font-style: italic;
   color: #ec4899;
-  overflow: hidden;
+  /* NOT overflow:hidden here (was, until the click-to-jump popover was added) - text
+     truncation is handled by the child span's own overflow/ellipsis rule below. Hiding
+     overflow on the ROW clipped the popover's hit-region too (it renders as an absolutely
+     positioned child of this row), so clicks past the clipped edge fell through to
+     whatever was underneath - the card itself - instead of reaching the popover items. */
 }
 
 .node-matrix-row svg {
@@ -961,6 +980,103 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Reciprocal direction of .node-matrix-row above (this person IS a dotted manager for
+   someone else, rather than reporting to one) - same shape, violet instead of pink so
+   the two directions read as visually distinct at a glance rather than duplicating the
+   same badge twice on a card that happens to be both. */
+.node-dotted-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(139, 92, 246, 0.35);
+  font-size: 10.5px;
+  font-style: italic;
+  color: #8b5cf6;
+  /* See the matching comment on .node-matrix-row above - same fix, same reason. */
+}
+
+.node-dotted-manager-row svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.node-dotted-manager-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Both matrix-manager badge rows are clickable - see the popover feature in OrgNode.jsx
+   for when the linked manager/reportee is an arbitrary distance away in the tree (too far
+   for the existing dashed connector line, which only draws when both cards are already on
+   screen). position:relative anchors the popover below THIS row specifically, not the
+   whole card, so it stays correctly placed even when the other badge is also present. */
+.node-badge-row-clickable {
+  position: relative;
+  cursor: pointer;
+  /* Real stacking bug caught during verification: this row (and its popover child) is a
+     SIBLING of .node-badge-popover-backdrop under the same card, not an ancestor of it. A
+     positioned element with no z-index of its own doesn't open a new stacking context, so
+     without this the popover's own z-index:200 was only being compared against the row's
+     OTHER children (the span/svg) - never against the backdrop, which sits one level up
+     and was winning the paint order outright at 150. Giving the row itself a higher
+     z-index than the backdrop makes the whole row+popover subtree paint above it, so a
+     click on a popover item actually reaches the item instead of being swallowed by the
+     backdrop underneath. */
+  z-index: 160;
+}
+
+.node-badge-row-clickable:hover {
+  filter: brightness(1.35);
+}
+
+/* Invisible click-catcher - see the comment above its render in OrgNode.jsx. */
+.node-badge-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: transparent;
+}
+
+.node-badge-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  max-width: 220px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  backdrop-filter: blur(24px);
+  border: var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  z-index: 200;
+  padding: 4px;
+  animation: dropdownSlideIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+  font-style: normal;
+}
+
+.node-badge-popover-item {
+  padding: 6px 8px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.node-badge-popover-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--accent-primary);
 }
 
 /* Dotted-line connector overlay - see the matrixLines effect in OrgCanvas.jsx. Sized to

@@ -511,6 +511,29 @@ export default function App() {
     }, 2500);
   }, [memberMap]);
 
+  // Jump straight to any member's card from elsewhere on the canvas - used by the
+  // dotted-line/matrix-manager badge popovers in OrgNode.jsx, where the linked person can
+  // be an arbitrary distance away (a different branch entirely, or collapsed away), so the
+  // existing "draw a line between both cards" approach (only works when both happen to be
+  // on screen already) can't help. Shares the exact same expand-ancestors + center + pulse
+  // logic as handleSelectSearchResult above, minus opening the drawer or forcing the view -
+  // this is always triggered from within the Tree view a card is already part of.
+  const handleJumpToMember = useCallback((memberId) => {
+    const ancestors = getAncestorIds(memberId, memberMap);
+    setCollapseState(prev => {
+      const next = { ...prev };
+      ancestors.forEach(aId => {
+        delete next[aId];
+      });
+      return next;
+    });
+
+    setFocusedNodeId(memberId);
+    setTimeout(() => {
+      setFocusedNodeId(null);
+    }, 2500);
+  }, [memberMap]);
+
   // Zoom Handlers
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.15, ZOOM_MAX));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.15, ZOOM_MIN));
@@ -771,6 +794,7 @@ export default function App() {
               hideNames={hideNames}
               onSelectMember={(member) => setSelectedMember(member)}
               onToggleCollapse={handleToggleCollapse}
+              onJumpToMember={handleJumpToMember}
               onZoomChange={setZoom}
               onRegisterFitToScreen={(fn) => { fitToScreenRef.current = fn; }}
             />

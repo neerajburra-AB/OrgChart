@@ -28,6 +28,7 @@ export default function OrgCanvas({
   hideNames = false,
   onSelectMember,
   onToggleCollapse,
+  onJumpToMember,
   onZoomChange,
   onRegisterFitToScreen
 }) {
@@ -50,6 +51,31 @@ export default function OrgCanvas({
     () => new Map((allMembers || []).map((m) => [m.id, m])),
     [allMembers]
   );
+
+  // Reverse-direction lookup for the same matrix/dotted-line relationship: who lists
+  // THIS node as one of their dotted managers, id -> array of those members. A card
+  // only ever advertises the relationship it OWNS (its own matrixManagerId, via the
+  // "Also reports to" badge in OrgNode.jsx) - if that report's own branch is collapsed
+  // elsewhere, the manager's card currently gives no visual hint at all that they're
+  // anyone's dotted manager, unless you open their drawer (see the new "Dotted-Line
+  // Reports" section in MemberDrawer.jsx) or both cards happen to be on screen at once
+  // (the dashed connector line below already IS visible from either end). This map is
+  // what lets OrgNode also show a small reciprocal badge on the manager's own card.
+  // Built once here in a single O(n) pass over allMembers - looked up per-card via
+  // Map.get (O(1)) rather than each card re-scanning allMembers itself, which would be
+  // the exact O(n) x O(rendered cards) perf bug this project already fixed once in
+  // ListView.jsx's manager lookup.
+  const dottedReportsByManagerId = useMemo(() => {
+    const map = new Map();
+    (allMembers || []).forEach((m) => {
+      toIdArray(m.matrixManagerId).forEach((managerId) => {
+        if (!managerId) return;
+        if (!map.has(managerId)) map.set(managerId, []);
+        map.get(managerId).push(m);
+      });
+    });
+    return map;
+  }, [allMembers]);
 
   // Dotted-line connectors for matrix-manager relationships (see MemberModal.jsx's
   // "Also Reports To" field). Recomputed by directly measuring the two cards' actual
@@ -360,6 +386,8 @@ export default function OrgCanvas({
             displayField={displayField}
             hideNames={hideNames}
             membersById={membersById}
+            dottedReportsByManagerId={dottedReportsByManagerId}
+            onJumpToMember={onJumpToMember}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
             searchPathIds={searchPathIds}
@@ -375,6 +403,8 @@ export default function OrgCanvas({
             displayField={displayField}
             hideNames={hideNames}
             membersById={membersById}
+            dottedReportsByManagerId={dottedReportsByManagerId}
+            onJumpToMember={onJumpToMember}
             selectedId={selectedMember?.id}
             searchMatchIds={searchMatches}
             searchPathIds={searchPathIds}
@@ -549,6 +579,8 @@ function WaterfallTreeGroup({
   displayField,
   hideNames,
   membersById,
+  dottedReportsByManagerId,
+  onJumpToMember,
   selectedId,
   searchMatchIds,
   searchPathIds,
@@ -582,6 +614,8 @@ function WaterfallTreeGroup({
           displayField={displayField}
           hideNames={hideNames}
           membersById={membersById}
+          dottedReportsByManagerId={dottedReportsByManagerId}
+          onJumpToMember={onJumpToMember}
           onSelect={onSelect}
           onToggleCollapse={onToggleCollapse}
         />
@@ -597,6 +631,8 @@ function WaterfallTreeGroup({
                 displayField={displayField}
                 hideNames={hideNames}
                 membersById={membersById}
+                dottedReportsByManagerId={dottedReportsByManagerId}
+                onJumpToMember={onJumpToMember}
                 selectedId={selectedId}
                 searchMatchIds={searchMatchIds}
                 searchPathIds={searchPathIds}
@@ -623,6 +659,8 @@ function WaterfallTreeGroup({
         displayField={displayField}
         hideNames={hideNames}
         membersById={membersById}
+        dottedReportsByManagerId={dottedReportsByManagerId}
+        onJumpToMember={onJumpToMember}
         onSelect={onSelect}
         onToggleCollapse={onToggleCollapse}
       />
@@ -640,6 +678,8 @@ function WaterfallTreeGroup({
               displayField={displayField}
               hideNames={hideNames}
               membersById={membersById}
+              dottedReportsByManagerId={dottedReportsByManagerId}
+              onJumpToMember={onJumpToMember}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
               searchPathIds={searchPathIds}
@@ -661,6 +701,8 @@ function ClassicTreeNodeGroup({
   displayField,
   hideNames,
   membersById,
+  dottedReportsByManagerId,
+  onJumpToMember,
   selectedId,
   searchMatchIds,
   searchPathIds,
@@ -688,6 +730,8 @@ function ClassicTreeNodeGroup({
         displayField={displayField}
         hideNames={hideNames}
         membersById={membersById}
+        dottedReportsByManagerId={dottedReportsByManagerId}
+        onJumpToMember={onJumpToMember}
         onSelect={onSelect}
         onToggleCollapse={onToggleCollapse}
       />
@@ -705,6 +749,8 @@ function ClassicTreeNodeGroup({
               displayField={displayField}
               hideNames={hideNames}
               membersById={membersById}
+              dottedReportsByManagerId={dottedReportsByManagerId}
+              onJumpToMember={onJumpToMember}
               selectedId={selectedId}
               searchMatchIds={searchMatchIds}
               searchPathIds={searchPathIds}
