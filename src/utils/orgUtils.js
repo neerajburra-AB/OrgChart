@@ -10,10 +10,13 @@ export const UNASSIGNED_MANAGER_ID = '__unassigned_rm__';
 export const ZOOM_MIN = 0.4;
 export const ZOOM_MAX = 2.0;
 
-// Preferred display order for known seniority levels in filter/form dropdowns. A level
+// Preferred display order for known seniority grades in filter/form dropdowns. A grade
 // value from the data that isn't in this map (a custom one the live Sheet introduces)
 // still shows up - see getUniqueSortedValues below - just sorted after these, alphabetically.
-export const LEVEL_RANK = { 'C-Level': 0, 'VP': 1, 'Director': 2, 'Lead': 3, 'Senior': 4, 'Mid': 5 };
+// NOTE (2026-09-22): this was named LEVEL_RANK and paired with a `level` field until the
+// Sheet's old `level` column (C-Level/VP/Director/...) was renamed to `grade`, freeing up
+// `level` for a separate, purely numbered field (L1/L2/...) - see compareByLevel below.
+export const GRADE_RANK = { 'C-Level': 0, 'VP': 1, 'Director': 2, 'Lead': 3, 'Senior': 4, 'Mid': 5 };
 
 // Shared by App.jsx's filter dropdowns and MemberModal's Add/Edit form dropdowns, so both
 // always offer exactly the values actually present in the loaded data - never a hardcoded
@@ -50,18 +53,21 @@ export function toIdArray(value) {
   return [];
 }
 
-// Sort key for one member's `level` field, used below to order tree siblings by
-// seniority/grade instead of whatever order they happen to sit in on the sheet. Falls
-// through three tiers so mismatched data never scrambles the recognized part of the
-// ordering: (0) a name already in LEVEL_RANK above (C-Level/VP/Director/...) sorts by
-// that known seniority rank; (1) a level with a number in it - "L1"/"L2"/"L3", "Level 4",
-// "Grade 04" - the format a real HR/SAP sheet is far more likely to actually use - sorts
-// by that number, so "L1" comes before "L2" before "L10" (a plain alphabetical sort would
-// wrongly put "L10" before "L2"); (2) blank or genuinely unrecognized text sorts last,
-// so a data gap can't displace the levels that ARE recognized.
+// Sort key for one member's `level` field (the numbered L1/L2/... grade code - see
+// GRADE_RANK above for the separate named `grade` field), used below to order tree
+// siblings by seniority instead of whatever order they happen to sit in on the sheet.
+// Falls through three tiers so mismatched/blank data never scrambles the recognized
+// part of the ordering: (0) a name that happens to match GRADE_RANK (kept as a
+// defensive fallback in case a grade name ever ends up in this field by mistake) sorts
+// by that known rank; (1) a level with a number in it - "L1"/"L2"/"L3", "Level 4" - the
+// actual format this field is meant to hold - sorts by that number, so "L1" comes before
+// "L2" before "L10" (a plain alphabetical sort would wrongly put "L10" before "L2");
+// (2) blank or genuinely unrecognized text sorts last, so a data gap (every existing
+// employee, until their L-level is set one by one through the Edit form) can't displace
+// the ones that ARE recognized - they just group at the end in their original order.
 function levelSortKey(level) {
   if (level === null || level === undefined || level === '') return [2, 0, ''];
-  if (level in LEVEL_RANK) return [0, LEVEL_RANK[level], level];
+  if (level in GRADE_RANK) return [0, GRADE_RANK[level], level];
   const match = String(level).match(/(\d+)/);
   if (match) return [1, Number(match[1]), level];
   return [2, 0, String(level)];
@@ -157,6 +163,7 @@ export function buildOrgTree(members, collapseState = {}) {
       skills: [],
       bio: 'Auto-generated group - these employees\' managerId does not match any existing employee id (typo, deleted manager, or bad import/export). Fix their managerId in the data source to place them correctly in the chart.',
       joinDate: '',
+      grade: '',
       level: '',
       children: orphanNodes,
       directReportsCount: 0,
@@ -459,9 +466,11 @@ export function getAncestorIds(memberId, memberMap) {
 }
 
 /**
- * Filter org members by search term, department, and level
+ * Filter org members by search term, department, and grade. (Grade is the renamed
+ * former `level` field - C-Level/VP/Director/... - see GRADE_RANK above. The newer
+ * `level` field, L1/L2/..., is edit-form/drawer-only for now, not wired into filtering.)
  */
-export function filterMembers(members, { search = '', department = 'all', level = 'all', status = 'all', entity = 'all' }) {
+export function filterMembers(members, { search = '', department = 'all', grade = 'all', status = 'all', entity = 'all' }) {
   const query = search.toLowerCase().trim();
 
   return members.filter(m => {
@@ -475,11 +484,11 @@ export function filterMembers(members, { search = '', department = 'all', level 
       (m.skills && m.skills.some(s => s.toLowerCase().includes(query)));
 
     const matchesDept = department === 'all' || m.department === department;
-    const matchesLevel = level === 'all' || m.level === level;
+    const matchesGrade = grade === 'all' || m.grade === grade;
     const matchesStatus = status === 'all' || m.status === status;
     const matchesEntity = entity === 'all' || m.entity === entity;
 
-    return matchesQuery && matchesDept && matchesLevel && matchesStatus && matchesEntity;
+    return matchesQuery && matchesDept && matchesGrade && matchesStatus && matchesEntity;
   });
 }
 
@@ -489,7 +498,7 @@ export function filterMembers(members, { search = '', department = 'all', level 
 export function computeOrgStats(members) {
   const total = members.length;
   const deptCounts = {};
-  const levelCounts = {};
+  const gradeCounts = {};
   const locationCounts = {};
   const statusCounts = {};
 
@@ -502,8 +511,8 @@ export function computeOrgStats(members) {
   members.forEach(m => {
     // Dept breakdown
     deptCounts[m.department] = (deptCounts[m.department] || 0) + 1;
-    // Level breakdown
-    levelCounts[m.level] = (levelCounts[m.level] || 0) + 1;
+    // Grade breakdown
+    gradeCounts[m.grade] = (gradeCounts[m.grade] || 0) + 1;
     // Location breakdown
     const locKey = m.location.includes('Remote') ? 'Remote' : m.location.split(',')[0] || m.location;
     locationCounts[locKey] = (locationCounts[locKey] || 0) + 1;
@@ -525,7 +534,7 @@ export function computeOrgStats(members) {
     totalICs,
     avgSpanOfControl,
     deptCounts,
-    levelCounts,
+    gradeCounts,
     locationCounts,
     statusCounts
   };
@@ -535,7 +544,7 @@ export function computeOrgStats(members) {
  * Export org chart data as CSV string
  */
 export function exportToCSV(members) {
-  const headers = ['ID', 'Name', 'Title', 'Department', 'Email', 'Phone', 'Location', 'Level', 'Status', 'Manager ID'];
+  const headers = ['ID', 'Name', 'Title', 'Department', 'Email', 'Phone', 'Location', 'Grade', 'Status', 'Manager ID'];
   const rows = members.map(m => [
     m.id,
     `"${m.name.replace(/"/g, '""')}"`,
@@ -544,7 +553,7 @@ export function exportToCSV(members) {
     `"${m.email}"`,
     `"${m.phone}"`,
     `"${m.location}"`,
-    `"${m.level}"`,
+    `"${m.grade}"`,
     `"${m.status}"`,
     `"${m.managerId || ''}"`
   ]);

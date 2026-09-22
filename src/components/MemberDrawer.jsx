@@ -91,8 +91,17 @@ export default function MemberDrawer({
                 {deptInfo.name}
               </span>
               <span className="skill-chip" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
-                {member.level}
+                {member.grade}
               </span>
+              {/* New 'level' field (L1/L2/...) is separate from grade above and starts
+                  blank for every existing employee (2026-09-22) - only shown once it's
+                  actually been set via the Edit form, so a not-yet-mapped person doesn't
+                  show an empty/awkward chip here. */}
+              {member.level && (
+                <span className="skill-chip" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>
+                  {member.level}
+                </span>
+              )}
             </div>
           </div>
 

@@ -83,7 +83,7 @@ export default function ListView({
                 Department <ArrowUpDown size={13} />
               </div>
             </th>
-            <th>Seniority Level</th>
+            <th>Grade</th>
             <th>Location</th>
             <th>Manager</th>
             <th style={{ textAlign: 'right' }}>Actions</th>
@@ -153,7 +153,7 @@ export default function ListView({
                       {dept.name}
                     </span>
                   </td>
-                  <td>{member.level}</td>
+                  <td>{member.grade}</td>
                   <td>{member.location}</td>
                   <td>
                     {manager ? (

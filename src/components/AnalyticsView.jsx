@@ -98,22 +98,24 @@ export default function AnalyticsView({ members }) {
           </div>
         </div>
 
-        {/* Seniority Level Breakdown */}
+        {/* Grade Breakdown - renamed from "Seniority Level" (2026-09-22), see
+            GRADE_RANK/gradeCounts in orgUtils.js. The newer 'level' field (L1/L2/...)
+            isn't broken out here - edit-form/drawer-only for now. */}
         <div className="chart-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
             <Award size={18} style={{ color: 'var(--accent-secondary)' }} />
-            <h3 className="chart-title" style={{ margin: 0 }}>Seniority Level Distribution</h3>
+            <h3 className="chart-title" style={{ margin: 0 }}>Grade Distribution</h3>
           </div>
 
           <div className="progress-list">
-            {['C-Level', 'VP', 'Director', 'Lead', 'Senior', 'Mid'].map((level) => {
-              const count = stats.levelCounts[level] || 0;
+            {['C-Level', 'VP', 'Director', 'Lead', 'Senior', 'Mid'].map((grade) => {
+              const count = stats.gradeCounts[grade] || 0;
               const percentage = stats.total > 0 ? ((count / stats.total) * 100).toFixed(1) : 0;
 
               return (
-                <div key={level} className="progress-item">
+                <div key={grade} className="progress-item">
                   <div className="progress-header">
-                    <span style={{ fontWeight: 600 }}>{level}</span>
+                    <span style={{ fontWeight: 600 }}>{grade}</span>
                     <span style={{ color: 'var(--text-secondary)' }}>
                       {count} ({percentage}%)
                     </span>

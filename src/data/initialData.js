@@ -26,7 +26,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Visionary Strategy', 'Enterprise Growth', 'M&A', 'Public Speaking'],
     bio: 'Former VP at TechCorp, 15+ years scaling high-growth tech companies.',
     joinDate: '2020-01-15',
-    level: 'C-Level'
+    grade: 'C-Level',
+    level: ''
   },
 
   // C-Suite Executives reporting to CEO
@@ -45,7 +46,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Distributed Systems', 'Cloud Architecture', 'AI Infrastructure', 'Technical Leadership'],
     bio: 'Pioneer in distributed graph databases and AI deployment pipelines.',
     joinDate: '2020-03-01',
-    level: 'C-Level'
+    grade: 'C-Level',
+    level: ''
   },
   {
     id: 'emp-3',
@@ -62,7 +64,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Product Strategy', 'User Growth', 'Data Analytics', 'Roadmap Optimization'],
     bio: 'Passionate about human-centered software and product-led viral loops.',
     joinDate: '2020-06-12',
-    level: 'C-Level'
+    grade: 'C-Level',
+    level: ''
   },
   {
     id: 'emp-4',
@@ -79,7 +82,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Enterprise B2B', 'Global Sales Ops', 'Pipeline Scaling', 'Deal Structuring'],
     bio: 'Scaled annual recurring revenue from $5M to $100M+ across EMEA and Americas.',
     joinDate: '2020-09-01',
-    level: 'C-Level'
+    grade: 'C-Level',
+    level: ''
   },
   {
     id: 'emp-5',
@@ -96,7 +100,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Talent Acquisition', 'Culture & DEI', 'Compensation Design', 'Org Architecture'],
     bio: 'Championing transparent, high-trust workplace culture and global hiring.',
     joinDate: '2021-02-15',
-    level: 'C-Level'
+    grade: 'C-Level',
+    level: ''
   },
 
   // VP Engineering & Leads reporting to Marcus Vance (CTO - emp-2)
@@ -115,7 +120,8 @@ export const INITIAL_MEMBERS = [
     skills: ['DevOps', 'Microservices', 'Engineering Ops', 'Agile Scaling'],
     bio: 'Directs 40+ engineers across Infrastructure, Backend, and Frontend teams.',
     joinDate: '2021-04-10',
-    level: 'VP'
+    grade: 'VP',
+    level: ''
   },
   {
     id: 'emp-7',
@@ -132,7 +138,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Large Language Models', 'PyTorch', 'Vector Search', 'NLP'],
     bio: 'PhD in Computer Science from Stanford; leading next-gen AI search algorithms.',
     joinDate: '2021-11-01',
-    level: 'Director'
+    grade: 'Director',
+    level: ''
   },
 
   // Engineering Directors & Managers reporting to Alex (emp-6)
@@ -151,7 +158,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Kubernetes', 'AWS/GCP', 'Terraform', 'Zero Trust Security'],
     bio: 'Ensuring 99.999% platform uptime and automated multi-region deployments.',
     joinDate: '2022-01-10',
-    level: 'Director'
+    grade: 'Director',
+    level: ''
   },
   {
     id: 'emp-9',
@@ -168,7 +176,8 @@ export const INITIAL_MEMBERS = [
     skills: ['React', 'TypeScript', 'Design Systems', 'Web Performance'],
     bio: 'Leads core web application team and design-to-code component architecture.',
     joinDate: '2022-03-15',
-    level: 'Lead'
+    grade: 'Lead',
+    level: ''
   },
 
   // IC Engineers reporting to Jessica Zhao (emp-9)
@@ -187,7 +196,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Canvas / WebGL', 'State Management', 'Accessibility', 'Next.js'],
     bio: 'Specialist in complex drag-and-drop interactive UI visualizers.',
     joinDate: '2022-08-01',
-    level: 'Senior'
+    grade: 'Senior',
+    level: ''
   },
   {
     id: 'emp-11',
@@ -204,7 +214,8 @@ export const INITIAL_MEMBERS = [
     skills: ['CSS Animations', 'React Component Libraries', 'Figma API'],
     bio: 'Building pixel-perfect glassmorphism themes and interactive micro-animations.',
     joinDate: '2023-02-20',
-    level: 'Mid'
+    grade: 'Mid',
+    level: ''
   },
 
   // IC Engineers reporting to Tariq (emp-8)
@@ -223,7 +234,8 @@ export const INITIAL_MEMBERS = [
     skills: ['CI/CD Pipelines', 'Docker', 'Site Reliability', 'Incident Management'],
     bio: 'Architecting zero-downtime blue/green deployment systems.',
     joinDate: '2022-05-10',
-    level: 'Senior'
+    grade: 'Senior',
+    level: ''
   },
 
   // Product & Design Team under Sophia Chen (CPO - emp-3)
@@ -242,7 +254,8 @@ export const INITIAL_MEMBERS = [
     skills: ['UX Architecture', 'Design Systems', 'User Research', 'Motion Design'],
     bio: 'Award-winning product designer crafting cohesive enterprise design language.',
     joinDate: '2021-01-20',
-    level: 'VP'
+    grade: 'VP',
+    level: ''
   },
   {
     id: 'emp-14',
@@ -259,7 +272,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Core Product', 'B2B Enterprise', 'Feature Prioritization', 'Telemetry'],
     bio: 'Oversees primary platform feature roadmap and quarterly OKRs.',
     joinDate: '2021-07-15',
-    level: 'Director'
+    grade: 'Director',
+    level: ''
   },
 
   // Designers under Liam (emp-13)
@@ -278,7 +292,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Figma Master', 'Interactive Prototypes', 'Data Visualization', 'User Testing'],
     bio: 'Specializes in high-density data canvas UI and org visualization UX.',
     joinDate: '2022-04-01',
-    level: 'Lead'
+    grade: 'Lead',
+    level: ''
   },
   {
     id: 'emp-16',
@@ -295,7 +310,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Qualitative Interviews', 'Usability Audits', 'Customer Journey Mapping'],
     bio: 'Translating executive customer feedback into intuitive product flows.',
     joinDate: '2022-10-15',
-    level: 'Senior'
+    grade: 'Senior',
+    level: ''
   },
 
   // Product Managers under Rachel Kim (emp-14)
@@ -314,7 +330,8 @@ export const INITIAL_MEMBERS = [
     skills: ['SQL', 'Mixpanel', 'Team Intelligence Metrics', 'Market Intelligence'],
     bio: 'Leading team analytics, capacity planning, and headcount modeling modules.',
     joinDate: '2023-01-10',
-    level: 'Senior'
+    grade: 'Senior',
+    level: ''
   },
 
   // Sales & Revenue under David Sterling (CRO - emp-4)
@@ -333,7 +350,8 @@ export const INITIAL_MEMBERS = [
     skills: ['EMEA Expansion', 'Fortune 500 Deals', 'Sales Leadership', 'Negotiation'],
     bio: 'Building enterprise customer relationships across Fortune 500 tech & finance.',
     joinDate: '2021-05-01',
-    level: 'VP'
+    grade: 'VP',
+    level: ''
   },
   {
     id: 'emp-19',
@@ -350,7 +368,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Salesforce', 'HubSpot', 'Sales Analytics', 'Quota Planning'],
     bio: 'Optimizing lead routing, revenue forecasting, and rep onboarding.',
     joinDate: '2021-09-20',
-    level: 'Director'
+    grade: 'Director',
+    level: ''
   },
 
   // Account Executives under Victoria (emp-18)
@@ -369,7 +388,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Strategic Accounts', 'SaaS Licensing', 'Executive Presentations'],
     bio: 'Consistently 150%+ quota achiever for North East Enterprise sector.',
     joinDate: '2022-02-14',
-    level: 'Senior'
+    grade: 'Senior',
+    level: ''
   },
   {
     id: 'emp-21',
@@ -386,7 +406,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Bilingual Sales', 'Contract Management', 'Channel Partnerships'],
     bio: 'Driving market expansion in Latin America enterprise accounts.',
     joinDate: '2022-11-01',
-    level: 'Senior'
+    grade: 'Senior',
+    level: ''
   },
 
   // People & HR under Aisha Patel (CPO - emp-5)
@@ -405,7 +426,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Executive Search', 'Technical Recruiting', 'Employer Branding'],
     bio: 'Scaled headcount from 30 to 200+ while maintaining top-tier candidate NPS.',
     joinDate: '2021-08-10',
-    level: 'Director'
+    grade: 'Director',
+    level: ''
   },
   {
     id: 'emp-23',
@@ -422,7 +444,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Employee Relations', 'Performance Mgmt', 'Retention Initiatives'],
     bio: 'Fostering inclusive workplace initiatives and leadership growth tracks.',
     joinDate: '2022-04-18',
-    level: 'Lead'
+    grade: 'Lead',
+    level: ''
   },
 
   // Marketing under CEO (emp-1)
@@ -441,7 +464,8 @@ export const INITIAL_MEMBERS = [
     skills: ['Brand Identity', 'Growth Marketing', 'PR & Communications', 'Content Strategy'],
     bio: 'Curator of Nexus brand vision, event keynotes, and product launches.',
     joinDate: '2021-06-01',
-    level: 'VP'
+    grade: 'VP',
+    level: ''
   },
   {
     id: 'emp-25',
@@ -458,6 +482,7 @@ export const INITIAL_MEMBERS = [
     skills: ['SEO / SEM', 'Paid Acquisition', 'Funnel Optimization', 'HubSpot Automation'],
     bio: 'Managing multi-channel demand generation and developer growth campaigns.',
     joinDate: '2022-07-15',
-    level: 'Lead'
+    grade: 'Lead',
+    level: ''
   }
 ];

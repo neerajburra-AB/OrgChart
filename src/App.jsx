@@ -21,7 +21,7 @@ import {
   reparentAroundInactive,
   resolveSkipLevelManagerId,
   computeCollapseStateFromRoot,
-  LEVEL_RANK,
+  GRADE_RANK,
   UNASSIGNED_MANAGER_ID,
   ZOOM_MIN,
   ZOOM_MAX
@@ -182,6 +182,12 @@ export default function App() {
       : [],
     bio: row.bio ?? '',
     joinDate: row.joinDate ?? '',
+    // Renamed from the old single `level` column (2026-09-22): the Sheet's original
+    // seniority text (C-Level/VP/Director/...) now lives under a `grade` header, and
+    // `level` is a separate, new-and-initially-blank column for a numbered L1/L2/...
+    // code the user maps per employee through the Edit form only (see MemberModal.jsx)
+    // - never auto-derived from grade or anything else.
+    grade: row.grade ?? '',
     level: row.level ?? ''
   });
 
@@ -319,7 +325,7 @@ export default function App() {
   // Search & Filter State
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [levelFilter, setLevelFilter] = useState('all');
+  const [gradeFilter, setGradeFilter] = useState('all');
   const [entityFilter, setEntityFilter] = useState('all');
   // Off by default: inactive employees (status === 'inactive') are hidden from both the
   // tree and the directory list until explicitly revealed - see reparentAroundInactive
@@ -361,9 +367,9 @@ export default function App() {
   const [reassignTarget, setReassignTarget] = useState(null);
 
   // Filter dropdown options, built from the ACTUAL loaded data rather than a hardcoded
-  // list. The old dropdowns only offered the 8 department keys and 6 level values baked
+  // list. The old dropdowns only offered the 8 department keys and 6 grade values baked
   // into the demo dataset - selecting a filter did nothing useful once the live Sheet
-  // introduced a department or level string that isn't one of those (e.g. "Operations",
+  // introduced a department or grade string that isn't one of those (e.g. "Operations",
   // "Manager"), because that value had no matching option to pick in the first place.
   const availableDepartments = useMemo(() => {
     const seen = new Set();
@@ -375,14 +381,17 @@ export default function App() {
     });
   }, [members]);
 
-  const availableLevels = useMemo(
-    () => getUniqueSortedValues(members, 'level', LEVEL_RANK),
+  // 'grade' is the renamed former 'level' column (C-Level/VP/Director/...) - see
+  // GRADE_RANK in orgUtils.js. The newer 'level' field (L1/L2/...) is edit-form/drawer-
+  // only for now (see MemberModal.jsx), not offered as a filter here.
+  const availableGrades = useMemo(
+    () => getUniqueSortedValues(members, 'grade', GRADE_RANK),
     [members]
   );
 
   // Same idea, for the 'entity' column (a newer addition to the live Sheet, alongside
-  // department/level). Sorted alphabetically since there's no known preferred order like
-  // LEVEL_RANK for seniority levels.
+  // department/grade). Sorted alphabetically since there's no known preferred order like
+  // GRADE_RANK for seniority grades.
   const availableEntities = useMemo(
     () => getUniqueSortedValues(members, 'entity'),
     [members]
@@ -390,16 +399,16 @@ export default function App() {
 
   // Filtered members list. showInactive gates this the same way it gates the tree below -
   // an inactive person shouldn't reappear in the directory (List view) just because they
-  // happen to match the current search/department/level/entity filters.
+  // happen to match the current search/department/grade/entity filters.
   const filteredMembers = useMemo(() => {
     const matches = filterMembers(members, {
       search,
       department: departmentFilter,
-      level: levelFilter,
+      grade: gradeFilter,
       entity: entityFilter
     });
     return showInactive ? matches : matches.filter((m) => !isInactiveStatus(m));
-  }, [members, search, departmentFilter, levelFilter, entityFilter, showInactive]);
+  }, [members, search, departmentFilter, gradeFilter, entityFilter, showInactive]);
 
   const inactiveCount = useMemo(
     () => members.filter(isInactiveStatus).length,
@@ -422,11 +431,11 @@ export default function App() {
 
   // Search Match IDs. Pure computation, no state updates inside it.
   const searchMatches = useMemo(() => {
-    if (!search && departmentFilter === 'all' && levelFilter === 'all' && entityFilter === 'all') {
+    if (!search && departmentFilter === 'all' && gradeFilter === 'all' && entityFilter === 'all') {
       return null;
     }
     return new Set(filteredMembers.map(m => m.id));
-  }, [search, departmentFilter, levelFilter, entityFilter, filteredMembers]);
+  }, [search, departmentFilter, gradeFilter, entityFilter, filteredMembers]);
 
   // Ancestors of the CURRENT search matches, so a match deep in a collapsed branch is
   // actually visible in the tree. Also pure - see the block right below for why this
@@ -759,12 +768,12 @@ export default function App() {
             setCardMode={setCardMode}
             departmentFilter={departmentFilter}
             setDepartmentFilter={setDepartmentFilter}
-            levelFilter={levelFilter}
-            setLevelFilter={setLevelFilter}
+            gradeFilter={gradeFilter}
+            setGradeFilter={setGradeFilter}
             entityFilter={entityFilter}
             setEntityFilter={setEntityFilter}
             availableDepartments={availableDepartments}
-            availableLevels={availableLevels}
+            availableGrades={availableGrades}
             availableEntities={availableEntities}
             onExpandAll={handleExpandAll}
             onCollapseAll={handleCollapseAll}

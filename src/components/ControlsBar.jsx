@@ -28,12 +28,12 @@ export default function ControlsBar({
   setCardMode,
   departmentFilter,
   setDepartmentFilter,
-  levelFilter,
-  setLevelFilter,
+  gradeFilter,
+  setGradeFilter,
   entityFilter,
   setEntityFilter,
   availableDepartments = [],
-  availableLevels = [],
+  availableGrades = [],
   availableEntities = [],
   onExpandAll,
   onCollapseAll,
@@ -57,7 +57,7 @@ export default function ControlsBar({
   };
   return (
     <div className="controls-toolbar">
-      {/* Left: Department & Level Filters */}
+      {/* Left: Department & Grade Filters */}
       <div className="toolbar-group">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
           <Filter size={14} />
@@ -84,13 +84,16 @@ export default function ControlsBar({
 
         <select
           className="select-box"
-          value={levelFilter}
-          onChange={(e) => setLevelFilter(e.target.value)}
+          value={gradeFilter}
+          onChange={(e) => setGradeFilter(e.target.value)}
         >
-          <option value="all">All Seniority Levels</option>
-          {/* Same idea as the department list above - see availableLevels in App.jsx. */}
-          {availableLevels.map(level => (
-            <option key={level} value={level}>{level}</option>
+          <option value="all">All Grades</option>
+          {/* Same idea as the department list above - see availableGrades in App.jsx.
+              This is the renamed former "Seniority Level" filter - it now reads the
+              'grade' field (C-Level/VP/Director/...). The newer 'level' field (L1/L2/...)
+              is edit-form/drawer-only for now, not filterable here. */}
+          {availableGrades.map(grade => (
+            <option key={grade} value={grade}>{grade}</option>
           ))}
         </select>
 
@@ -100,7 +103,7 @@ export default function ControlsBar({
           onChange={(e) => setEntityFilter(e.target.value)}
         >
           <option value="all">All Entities</option>
-          {/* Same idea as Department/Level above - built from the 'entity' column
+          {/* Same idea as Department/Grade above - built from the 'entity' column
               actually present in the loaded data (see availableEntities in App.jsx),
               not a hardcoded list. */}
           {availableEntities.map(entity => (
@@ -108,7 +111,7 @@ export default function ControlsBar({
           ))}
         </select>
 
-        {(departmentFilter !== 'all' || levelFilter !== 'all' || entityFilter !== 'all') && (
+        {(departmentFilter !== 'all' || gradeFilter !== 'all' || entityFilter !== 'all') && (
           <span style={{ fontSize: 12, color: 'var(--accent-primary)', fontWeight: 600 }}>
             Showing {matchCount} of {totalCount}
           </span>

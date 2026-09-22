@@ -19,7 +19,8 @@
     ],
     "bio": "Former VP at TechCorp, 15+ years scaling high-growth tech companies.",
     "joinDate": "2020-01-15",
-    "level": "C-Level"
+    "grade": "C-Level",
+    "level": ""
   },
   {
     "id": "emp-2",
@@ -41,7 +42,8 @@
     ],
     "bio": "Pioneer in distributed graph databases and AI deployment pipelines.",
     "joinDate": "2020-03-01",
-    "level": "C-Level"
+    "grade": "C-Level",
+    "level": ""
   },
   {
     "id": "emp-3",
@@ -63,7 +65,8 @@
     ],
     "bio": "Passionate about human-centered software and product-led viral loops.",
     "joinDate": "2020-06-12",
-    "level": "C-Level"
+    "grade": "C-Level",
+    "level": ""
   },
   {
     "id": "emp-4",
@@ -85,7 +88,8 @@
     ],
     "bio": "Scaled annual recurring revenue from $5M to $100M+ across EMEA and Americas.",
     "joinDate": "2020-09-01",
-    "level": "C-Level"
+    "grade": "C-Level",
+    "level": ""
   },
   {
     "id": "emp-5",
@@ -107,7 +111,8 @@
     ],
     "bio": "Championing transparent, high-trust workplace culture and global hiring.",
     "joinDate": "2021-02-15",
-    "level": "C-Level"
+    "grade": "C-Level",
+    "level": ""
   },
   {
     "id": "emp-6",
@@ -129,7 +134,8 @@
     ],
     "bio": "Directs 40+ engineers across Infrastructure, Backend, and Frontend teams.",
     "joinDate": "2021-04-10",
-    "level": "VP"
+    "grade": "VP",
+    "level": ""
   },
   {
     "id": "emp-7",
@@ -153,7 +159,8 @@
     ],
     "bio": "PhD in Computer Science from Stanford; leading next-gen AI search algorithms.",
     "joinDate": "2021-11-01",
-    "level": "Director"
+    "grade": "Director",
+    "level": ""
   },
   {
     "id": "emp-8",
@@ -175,7 +182,8 @@
     ],
     "bio": "Ensuring 99.999% platform uptime and automated multi-region deployments.",
     "joinDate": "2022-01-10",
-    "level": "Director"
+    "grade": "Director",
+    "level": ""
   },
   {
     "id": "emp-9",
@@ -199,7 +207,8 @@
     ],
     "bio": "Leads core web application team and design-to-code component architecture.",
     "joinDate": "2022-03-15",
-    "level": "Lead"
+    "grade": "Lead",
+    "level": ""
   },
   {
     "id": "emp-10",
@@ -221,7 +230,8 @@
     ],
     "bio": "Specialist in complex drag-and-drop interactive UI visualizers.",
     "joinDate": "2022-08-01",
-    "level": "Senior"
+    "grade": "Senior",
+    "level": ""
   },
   {
     "id": "emp-11",
@@ -242,7 +252,8 @@
     ],
     "bio": "Building pixel-perfect glassmorphism themes and interactive micro-animations.",
     "joinDate": "2023-02-20",
-    "level": "Mid"
+    "grade": "Mid",
+    "level": ""
   },
   {
     "id": "emp-12",
@@ -264,7 +275,8 @@
     ],
     "bio": "Architecting zero-downtime blue/green deployment systems.",
     "joinDate": "2022-05-10",
-    "level": "Senior"
+    "grade": "Senior",
+    "level": ""
   },
   {
     "id": "emp-13",
@@ -286,7 +298,8 @@
     ],
     "bio": "Award-winning product designer crafting cohesive enterprise design language.",
     "joinDate": "2021-01-20",
-    "level": "VP"
+    "grade": "VP",
+    "level": ""
   },
   {
     "id": "emp-14",
@@ -308,7 +321,8 @@
     ],
     "bio": "Oversees primary platform feature roadmap and quarterly OKRs.",
     "joinDate": "2021-07-15",
-    "level": "Director"
+    "grade": "Director",
+    "level": ""
   },
   {
     "id": "emp-15",
@@ -332,7 +346,8 @@
     ],
     "bio": "Specializes in high-density data canvas UI and org visualization UX.",
     "joinDate": "2022-04-01",
-    "level": "Lead"
+    "grade": "Lead",
+    "level": ""
   },
   {
     "id": "emp-16",
@@ -353,7 +368,8 @@
     ],
     "bio": "Translating executive customer feedback into intuitive product flows.",
     "joinDate": "2022-10-15",
-    "level": "Senior"
+    "grade": "Senior",
+    "level": ""
   },
   {
     "id": "emp-17",
@@ -375,7 +391,8 @@
     ],
     "bio": "Leading team analytics, capacity planning, and headcount modeling modules.",
     "joinDate": "2023-01-10",
-    "level": "Senior"
+    "grade": "Senior",
+    "level": ""
   },
   {
     "id": "emp-18",
@@ -397,7 +414,8 @@
     ],
     "bio": "Building enterprise customer relationships across Fortune 500 tech & finance.",
     "joinDate": "2021-05-01",
-    "level": "VP"
+    "grade": "VP",
+    "level": ""
   },
   {
     "id": "emp-19",
@@ -419,7 +437,8 @@
     ],
     "bio": "Optimizing lead routing, revenue forecasting, and rep onboarding.",
     "joinDate": "2021-09-20",
-    "level": "Director"
+    "grade": "Director",
+    "level": ""
   },
   {
     "id": "emp-20",
@@ -440,7 +459,8 @@
     ],
     "bio": "Consistently 150%+ quota achiever for North East Enterprise sector.",
     "joinDate": "2022-02-14",
-    "level": "Senior"
+    "grade": "Senior",
+    "level": ""
   },
   {
     "id": "emp-21",
@@ -461,7 +481,8 @@
     ],
     "bio": "Driving market expansion in Latin America enterprise accounts.",
     "joinDate": "2022-11-01",
-    "level": "Senior"
+    "grade": "Senior",
+    "level": ""
   },
   {
     "id": "emp-22",
@@ -482,7 +503,8 @@
     ],
     "bio": "Scaled headcount from 30 to 200+ while maintaining top-tier candidate NPS.",
     "joinDate": "2021-08-10",
-    "level": "Director"
+    "grade": "Director",
+    "level": ""
   },
   {
     "id": "emp-23",
@@ -503,7 +525,8 @@
     ],
     "bio": "Fostering inclusive workplace initiatives and leadership growth tracks.",
     "joinDate": "2022-04-18",
-    "level": "Lead"
+    "grade": "Lead",
+    "level": ""
   },
   {
     "id": "emp-24",
@@ -525,7 +548,8 @@
     ],
     "bio": "Curator of Nexus brand vision, event keynotes, and product launches.",
     "joinDate": "2021-06-01",
-    "level": "VP"
+    "grade": "VP",
+    "level": ""
   },
   {
     "id": "emp-25",
@@ -549,6 +573,7 @@
     ],
     "bio": "Managing multi-channel demand generation and developer growth campaigns.",
     "joinDate": "2022-07-15",
-    "level": "Lead"
+    "grade": "Lead",
+    "level": ""
   }
 ]

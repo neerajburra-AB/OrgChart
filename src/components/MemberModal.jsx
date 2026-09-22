@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, Edit3, Sparkles } from 'lucide-react';
 import { DEPARTMENTS } from '../data/initialData';
-import { isDescendant, getUniqueSortedValues, LEVEL_RANK, toIdArray } from '../utils/orgUtils';
+import { isDescendant, getUniqueSortedValues, GRADE_RANK, toIdArray } from '../utils/orgUtils';
 
 import ManagerPicker from './ManagerPicker';
 import MultiManagerPicker from './MultiManagerPicker';
+
+// Fixed dropdown for the newer, separate 'level' field (2026-09-22) - a numbered L1/L2/...
+// code the user maps onto each employee themselves, distinct from 'grade' (the renamed
+// former 'level' field - C-Level/VP/Director/...) below. Fixed rather than data-driven
+// (unlike Department/Grade/Entity/Projects) since it's brand new and starts blank for
+// every existing employee - there's no real data yet to learn options from. A blank
+// "Select Level" placeholder is always first so leaving it untouched never silently
+// assigns L1 to someone.
+const FIXED_LEVEL_OPTIONS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10'];
 
 export default function MemberModal({
   isOpen,
@@ -21,6 +30,7 @@ export default function MemberModal({
     department: '',
     entity: '',
     projects: '',
+    grade: '',
     level: '',
     managerId: presetManagerId || (allMembers[0]?.id || ''),
     matrixManagerId: [],
@@ -35,17 +45,19 @@ export default function MemberModal({
   const [isSaving, setIsSaving] = useState(false);
 
   // Same data-driven pattern as the top toolbar's filter dropdowns (see App.jsx) - built
-  // from whatever departments/levels/entities are actually in use, not a hardcoded demo
+  // from whatever departments/grades/entities are actually in use, not a hardcoded demo
   // list, so this form can always represent a real employee's real values. Falls back to
-  // the demo DEPARTMENTS keys / a starter level list only when there's no data yet to
+  // the demo DEPARTMENTS keys / a starter grade list only when there's no data yet to
   // learn options from (e.g. a brand new, empty sheet).
   const availableDepartments = useMemo(() => {
     const fromData = getUniqueSortedValues(allMembers, 'department');
     return fromData.length > 0 ? fromData : Object.keys(DEPARTMENTS);
   }, [allMembers]);
 
-  const availableLevels = useMemo(() => {
-    const fromData = getUniqueSortedValues(allMembers, 'level', LEVEL_RANK);
+  // 'grade' is the renamed former 'level' field (C-Level/VP/Director/...) - see the
+  // newer, separate 'level' field (L1/L2/...) below, FIXED_LEVEL_OPTIONS.
+  const availableGrades = useMemo(() => {
+    const fromData = getUniqueSortedValues(allMembers, 'grade', GRADE_RANK);
     return fromData.length > 0 ? fromData : ['C-Level', 'VP', 'Director', 'Lead', 'Senior', 'Mid'];
   }, [allMembers]);
 
@@ -67,20 +79,29 @@ export default function MemberModal({
         // Tolerate a legacy single-string value here too (pre-multi-manager data), not
         // just the array shape parseSheetRow now always produces - so an old bundled
         // members.json or a stale localStorage save can't crash this form.
-        matrixManagerId: toIdArray(initialData.matrixManagerId)
+        matrixManagerId: toIdArray(initialData.matrixManagerId),
+        // Defensively default both to '' rather than trusting every possible source
+        // (a legacy localStorage save, a custom JSON re-import from before this split)
+        // to already have split 'level' into 'grade' + 'level' - an undefined value on
+        // a controlled <select> would otherwise make React treat it as uncontrolled.
+        grade: initialData.grade ?? '',
+        level: initialData.level ?? ''
       });
     } else if (mode === 'add') {
       setFormData({
         name: '',
         title: '',
-        // Default to the first real department/level actually in use, not a hardcoded
+        // Default to the first real department/grade actually in use, not a hardcoded
         // demo value - so leaving these untouched still saves a value that exists in the
         // dropdown (and in the real data), not a stray "Engineering"/"Senior" that may not
-        // match anything in this company's actual Sheet.
+        // match anything in this company's actual Sheet. 'level' (L1/L2/...) is the
+        // exception - deliberately left blank (not defaulted to the first fixed option)
+        // so it's never silently set unless someone actually picks one.
         department: availableDepartments[0] || '',
         entity: '',
         projects: '',
-        level: availableLevels[0] || '',
+        grade: availableGrades[0] || '',
+        level: '',
         managerId: presetManagerId || (allMembers[0]?.id || ''),
         matrixManagerId: [],
         email: '',
@@ -92,7 +113,7 @@ export default function MemberModal({
         bio: ''
       });
     }
-  }, [mode, initialData, presetManagerId, allMembers, availableDepartments, availableLevels]);
+  }, [mode, initialData, presetManagerId, allMembers, availableDepartments, availableGrades]);
 
   if (!isOpen) return null;
 
@@ -178,7 +199,7 @@ export default function MemberModal({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
               <div className="form-group">
                 <label className="form-label">Department</label>
                 <select
@@ -198,14 +219,38 @@ export default function MemberModal({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Seniority Level</label>
+                <label className="form-label">Grade</label>
+                <select
+                  className="form-control"
+                  value={formData.grade}
+                  onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                >
+                  {/* Renamed from "Seniority Level" (2026-09-22) - the Sheet's old
+                      'level' column (C-Level/VP/Director/...) is now 'grade'. See the
+                      new, separate "Level" field right after this for L1/L2/... */}
+                  {availableGrades.map(grade => (
+                    <option key={grade} value={grade}>{grade}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Level</label>
                 <select
                   className="form-control"
                   value={formData.level}
                   onChange={(e) => setFormData({ ...formData, level: e.target.value })}
                 >
-                  {availableLevels.map(level => (
-                    <option key={level} value={level}>{level}</option>
+                  {/* New, separate from Grade above (2026-09-22) - a numbered code (L1,
+                      L2, ...) mapped onto each employee here, one at a time, through
+                      this form only. Fixed list (FIXED_LEVEL_OPTIONS above), not
+                      data-driven like Grade/Department, since it starts blank for every
+                      existing employee. Tree siblings are sorted by this field - see
+                      compareByLevel in orgUtils.js - so anyone left blank sorts after
+                      everyone whose Level has been set. */}
+                  <option value="">Select Level</option>
+                  {FIXED_LEVEL_OPTIONS.map(lvl => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
                   ))}
                 </select>
               </div>
